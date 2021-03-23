@@ -6,7 +6,7 @@ import './styles.css'
 function Login() {
     
     const [email, setEmail] = useState('')
-    const [pass, setPass] = useState('')
+    const [pass, setPass] = useState('toralla')
     const [msgerror, setMsgError] = useState(null)
     const [dataUser, setDataUser] = useState([])
     const historial = useHistory()
@@ -53,7 +53,7 @@ function Login() {
                     </div>
                     <div className="form-group">
                         <label><i className="fas fa-key mr-2"></i>Contraseña</label>
-                        <input onChange={e => setPass(e.target.value)} value={pass} className="form-control" type="text" dplaceholder="Contraseña..." />
+                        <input onChange={e => setPass(e.target.value)} value={pass} className="form-control" type="password" dplaceholder="Contraseña..." />
                     </div>
                     <button className="btn btn-dark btn-block mt-4">
                             Ingresar
