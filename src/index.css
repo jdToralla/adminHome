@@ -1,0 +1,14 @@
+.fondo{
+    background: rgb(213, 217, 219);
+    background: url('https://firebasestorage.googleapis.com/v0/b/admincuentas-c08f5.appspot.com/o/fondo.jpg?alt=media&token=83671e88-587d-4384-a9d8-e6c977bcdb29');
+    background-position: center;
+    background-size: cover;
+    min-height: 100vh;
+    height: 100%;
+  }
+  
+
+.customTable{
+    height: 380px;
+    overflow: scroll;
+  }
