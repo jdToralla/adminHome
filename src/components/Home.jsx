@@ -55,7 +55,6 @@ export default function Home() {
         ))    
         
         setTotal(newArray[1].total - newArray[0].total )
-        console.log('Obteniendo data de calculo',total);
     }
 
     const agregarData = (e)=>{
@@ -70,7 +69,7 @@ export default function Home() {
 
     let suma = 0; 
     const getData = async()=>{
-      console.log('obteniendo data Ingresos');
+      // console.log('obteniendo data Ingresos');
       const {docs} = await firedb.collection('ingresos').orderBy("fecha","desc").get()
       const newArray = docs.map(item=>(
          {id:item.id,...item.data()}
@@ -87,7 +86,7 @@ export default function Home() {
     }
 
     const getDataE = async()=>{
-      console.log('Obteniendo data Egresos');
+      // console.log('Obteniendo data Egresos');
       const {docs} = await firedb.collection('egresos').orderBy("fecha","desc").get()
        const newArray = docs.map(item=>(
          {id:item.id,...item.data()}
