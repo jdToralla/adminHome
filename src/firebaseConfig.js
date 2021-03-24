@@ -4,12 +4,12 @@ import 'firebase/firestore'
 import 'firebase/storage'
 
 const config = {
-    apiKey: "AIzaSyBlrhCB15tH1CPY7-pqQLUM6lxzbwhxt1I",
-    authDomain: "admincuentas-c08f5.firebaseapp.com",
-    projectId: "admincuentas-c08f5",
-    storageBucket: "admincuentas-c08f5.appspot.com",
-    messagingSenderId: "1039913593297",
-    appId: "1:1039913593297:web:abbc7acf6ab0c62de518f0",
+    apiKey: "AIzaSyCF-z2ZrX_tkqsmkUfHhLkEYsMuYDBTtiE",
+    authDomain: "adminhome-36c6e.firebaseapp.com",
+    projectId: "adminhome-36c6e",
+    storageBucket: "adminhome-36c6e.appspot.com",
+    messagingSenderId: "450868120054",
+    appId: "1:450868120054:web:527d8ee64f78be64105fd7",
     rules: {
         ".read": "auth != null",
         ".write": "auth != null"

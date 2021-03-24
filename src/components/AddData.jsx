@@ -29,10 +29,11 @@ export default function AddData(props) {
   const [dataEgreso, setDataEgreso] = useState(emptyEgreso);
 
   useEffect(() => {
-    getData();
+    getDataInquilinos();
   }, []);
 
-  const getData = async () => {
+  const getDataInquilinos = async () => {
+    console.log('Data de inquilinos');
     const { docs } = await firedb.collection("inquilinos").get();
     const newData = docs.map((item) => ({ id: item.id, ...item.data() }));
     setInquilinos(newData);
@@ -44,7 +45,8 @@ export default function AddData(props) {
       .collection("ingresos")
       .add(dataIngreso)
       .then((r) => {
-        console.log(dataIngreso);
+
+        props.calculo()
         sweet({
           title: "Agregado correctamente",
           icon: "success",
@@ -61,21 +63,13 @@ export default function AddData(props) {
       .collection("egresos")
       .add(dataEgreso)
       .then(async(r) => {
-        console.log(dataEgreso);
+
+        props.calculo()
         sweet({
           title: "Agregado correctamente",
           icon: "success",
           timer: 1000,
         });
-        
-        /*const {docs} = await firedb.collection('totalCaja').get()
-        const total  = docs.map(item=>(
-          {...item.data()}
-        ))
-        console.log("tengo el total: ", typeof total[0].total);
-        console.log("le resto: ", typeof dataEgreso.cantidad);
-        console.log((total[0].total - dataEgreso.cantidad));
-        */
         setDataEgreso(emptyEgreso);
       })
       .catch((e) => console.log(e));
@@ -140,7 +134,7 @@ export default function AddData(props) {
         <button
           className=" w-100 btn btn-success d-block"
           onClick={(e) => {
-            props.papi(false);
+            props.agregarData(false);
           }}
         >
           Agregar
@@ -213,7 +207,7 @@ export default function AddData(props) {
         </div>
         <button
           onClick={(e) => {
-            props.papi(true);
+            props.agregarData(true);
           }}
           className=" w-100 btn btn-success d-block"
         >

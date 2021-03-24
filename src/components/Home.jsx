@@ -52,23 +52,27 @@ export default function Home() {
       const {docs} = await firedb.collection('totalCaja').get()
       const newArray = docs.map(item=>(
         {id:item.id,...item.data()}
-      ))    
-      
-    setTotal(newArray[1].total - newArray[0].total )
+        ))    
+        
+        setTotal(newArray[1].total - newArray[0].total )
+        console.log('Obteniendo data de calculo',total);
     }
 
-    const papi = (e)=>{
+    const agregarData = (e)=>{
       if(e === true){
         getData()
+        calculo()
       }else{
         getDataE()
+        calculo()
       }
     }
 
     let suma = 0; 
     const getData = async()=>{
+      console.log('obteniendo data Ingresos');
       const {docs} = await firedb.collection('ingresos').orderBy("fecha","desc").get()
-       const newArray = docs.map(item=>(
+      const newArray = docs.map(item=>(
          {id:item.id,...item.data()}
        ))        
        
@@ -83,6 +87,7 @@ export default function Home() {
     }
 
     const getDataE = async()=>{
+      console.log('Obteniendo data Egresos');
       const {docs} = await firedb.collection('egresos').orderBy("fecha","desc").get()
        const newArray = docs.map(item=>(
          {id:item.id,...item.data()}
@@ -113,7 +118,7 @@ export default function Home() {
     <div className="container">
       <div className="row mt-4">
         <div className="col-12 col-sm-4 mb-5 mb-sm-0 order-2 order-md-1">
-          <AddData papi={papi}></AddData>
+          <AddData calculo={calculo} agregarData={agregarData}></AddData>
         </div>
         <div className="col-12 col-sm-8 mt-4 mt-md-0 order-1 order-md-2">
           <select onChange={e=>seleccion(e)} className="form-control bg-dark text-light" id="FormControlSelect1">
@@ -122,7 +127,7 @@ export default function Home() {
             <option >Egreso</option>
           </select>
           <div className="mt-2 bg-light customTable">
-              { flagTable ? <TableIngresos getData={getData} calculo={calculo}  listIngresos2={listIngresos}/>: <TableEgresos getDataE={getDataE}  calculo={calculo} listEgresos2={listEgresos}/>}
+              { flagTable ? <TableIngresos getData={getData}  listIngresos2={listIngresos}/>: <TableEgresos getDataE={getDataE} calculo={calculo}  listEgresos2={listEgresos}/>}
           </div>
           <div className="bg-light d-flex justify-content-end pr-3 mt-2 mb-5 mb-md-0 w-100 h5">
               <strong className="pr-2"> Caja: </strong> Q {total}.00

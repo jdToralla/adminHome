@@ -1,22 +1,26 @@
 import React, {useEffect} from "react";
 
 import { firedb } from '../firebaseConfig'
+import sweet from 'sweetalert'
 export default function TableEgresos(props) {
   
   useEffect(()=>{     
     props.getDataE()
-    props.calculo()
-  })
+  },[])
 
   const eliminarEgreso = async(id)=>{
     console.log("delete", id);
-    const {docs} = await firedb.collection("egresos").get()
-    const newData = docs.map(item=>(
-      {...item.data()}
-    ))
-    
-    console.log(newData);
+    await firedb.collection("egresos").doc(id).delete().then(
+      r=> {
 
+        props.getDataE()
+        sweet({
+          title: "Eliminado correctamente",
+          icon: "success",
+          timer: 1000,
+        });
+      }
+    ).catch(e => console.log(e)) 
   }
   
   return (

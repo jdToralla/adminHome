@@ -4,9 +4,9 @@ import React, {useEffect}from 'react'
 export default function TableIngresos(props) {
       
     useEffect(()=>{     
-      props.getData()
-      
-    })
+      props.getData()  
+      // props.calculo()    
+    },[])
   
     return (
         <div className="">
