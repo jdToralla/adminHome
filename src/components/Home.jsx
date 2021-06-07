@@ -8,7 +8,7 @@ export default function Home() {
     
     useEffect(()=>{
       let idUser = localStorage.getItem('currentId')
-        if(idUser.length > 0){
+        if(idUser){
           calculo()
         }
 
