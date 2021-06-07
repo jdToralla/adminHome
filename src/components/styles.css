@@ -1,0 +1,24 @@
+.bg-blue{
+    background: #0F0326 !important;
+}
+
+.bg-yellow{
+    background: #FFFF82 !important;
+}
+
+.bg-green{
+    background: #B5D99C !important;
+}
+
+.bg-red{
+    background: #E65F5C !important;
+}
+
+.icon-menu i{
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
+.icon-menu{
+    cursor: pointer;
+}

@@ -9,10 +9,9 @@ export default function TableEgresos(props) {
   },[])
 
   const eliminarEgreso = async(id)=>{
-    console.log("delete", id);
-    await firedb.collection("egresos").doc(id).delete().then(
+    let idUser = localStorage.getItem('currentId')
+    await firedb.collection(`egresos-${idUser}`).doc(id).delete().then(
       r=> {
-
         props.getDataE()
         sweet({
           title: "Eliminado correctamente",
@@ -25,13 +24,13 @@ export default function TableEgresos(props) {
   
   return (
     <div className="">
-        <h5 className="text-center w-100 d-block py-1 bg-warning text-light">Egresos</h5>
+        <h5 className="text-center w-100 d-block py-1 bg-yellow text-dark"><strong>Egresos</strong></h5>
         <table className="table table-hover table-striped">
-          <thead className="table-success">
+          <thead className="">
             <tr>
                 <th scope="col">#</th>
                 <th scope="col">Cantidad</th>
-                <th scope="col">Descripcion</th>
+                <th scope="col">Descripción</th>
                 <th scope="col">Fecha</th>
                 <th scope="col">Hora</th>
                 <th scope="col">Eliminar</th>
@@ -46,7 +45,7 @@ export default function TableEgresos(props) {
               <td>{item.descripcion}</td>
               <td>{item.fecha}</td>
               <td>{item.hora}</td>
-              <td ><button onClick={e=>eliminarEgreso(item.id)}  className="btn btn-danger"><i className="fas fa-trash"></i></button>  </td>
+              <td ><button onClick={e=>eliminarEgreso(item.id)}  className="btn btn-danger bg-red"><i className="fas fa-trash"></i></button>  </td>
             </tr>
             ))
           }

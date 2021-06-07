@@ -14,7 +14,7 @@ export default function AddData(props) {
     cantidad: 0,
     fecha: "",
     hora: getHora(),
-    inquilino: "",
+    descripcion: "",
   };
 
   let emptyEgreso = {
@@ -27,9 +27,12 @@ export default function AddData(props) {
   const [inquilinos, setInquilinos] = useState([]);
   const [dataIngreso, setDataIngreso] = useState(emptyIngreso);
   const [dataEgreso, setDataEgreso] = useState(emptyEgreso);
+  const [idUser, setIdUser] = useState('');
 
   useEffect(() => {
     getDataInquilinos();
+    let idUser = localStorage.getItem('currentId')
+    setIdUser(idUser)    
   }, []);
 
   const getDataInquilinos = async () => {
@@ -41,8 +44,10 @@ export default function AddData(props) {
 
   const setIngreso = async (e) => {
     e.preventDefault();
+    // let idUser = localStorage.getItem('currentId')
+
     await firedb
-      .collection("ingresos")
+      .collection(`ingresos-${idUser}`)
       .add(dataIngreso)
       .then((r) => {
 
@@ -59,10 +64,11 @@ export default function AddData(props) {
 
   const setEgreso = async (e) => {
     e.preventDefault();
+    // let idUser = localStorage.getItem('currentId')
     await firedb
-      .collection("egresos")
+      .collection(`egresos-${idUser}`)
       .add(dataEgreso)
-      .then(async(r) => {
+      .then(async (r) => {
 
         props.calculo()
         sweet({
@@ -77,12 +83,12 @@ export default function AddData(props) {
 
   return (
     <div className="w-100">
-      <form onSubmit={(e) => setEgreso(e)} className="w-100 bg-warning p-2">
+      <form onSubmit={(e) => setEgreso(e)} className="w-100  bg-yellow p-2">
         <div className="row">
           <div className="col p-0">
             <div className="form-group ml-3">
               <label>
-                <strong> Egreso:</strong>{" "}
+                <strong> <i class="fas fa-money-bill-alt"></i> Egreso:</strong>{" "}
               </label>
               <input
                 className="form-control"
@@ -99,9 +105,9 @@ export default function AddData(props) {
           </div>
           <div className="col">
             <div className="form-group">
-              <label htmlFor="">
+              <label>
                 {" "}
-                <strong>Fecha:</strong>{" "}
+                <strong><i class="fas fa-calendar-day"></i> Fecha:</strong>{" "}
               </label>
               <input
                 className="form-control"
@@ -119,7 +125,7 @@ export default function AddData(props) {
 
         <div className="form-group">
           <label>
-            <strong> Descripcion:</strong>{" "}
+            <strong> Descripción:</strong>{" "}
           </label>
           <input
             className="form-control"
@@ -132,25 +138,25 @@ export default function AddData(props) {
           />
         </div>
         <button
-          className=" w-100 btn btn-success d-block"
+          className=" w-100 btn bg-blue text-light d-block"
           onClick={(e) => {
             props.agregarData(false);
           }}
         >
-          Agregar
+          <i className="fas fa-check mr-2"></i>  Agregar
         </button>
       </form>
 
       {/* Aqui empiza el otro Form */}
       <form
         onSubmit={(e) => setIngreso(e)}
-        className="w-100 bg-light mt-3 p-2 border"
+        className="w-100 bg-green mt-3 p-2 border"
       >
         <div className="row">
           <div className="col p-0">
             <div className="form-group ml-3">
               <label>
-                <strong> Ingreso:</strong>{" "}
+                <strong> <i class="fas fa-money-bill-alt"></i> Ingreso:</strong>{" "}
               </label>
               <input
                 onChange={(e) =>
@@ -169,9 +175,9 @@ export default function AddData(props) {
           </div>
           <div className="col">
             <div className="form-group">
-              <label htmlFor="">
+              <label>
                 {" "}
-                <strong>Fecha:</strong>
+                <strong><i class="fas fa-calendar-day"></i> Fecha:</strong>
               </label>
               <input
                 onChange={(e) =>
@@ -186,9 +192,9 @@ export default function AddData(props) {
             </div>
           </div>
         </div>
-        <div className="form-group">
+        {/* <div className="form-group">
           <label htmlFor="FormControlSelect1">
-            <strong>Inquilino:</strong>
+            <satrong>Descripción:</strong>
           </label>
           <select className="form-control" id="FormControlSelect1">
             <option> Seleccione un inquilino...</option>
@@ -204,17 +210,30 @@ export default function AddData(props) {
               </option>
             ))}
           </select>
+        </div> */}
+        <div className="form-group">
+          <label>
+            <strong> Descripción:</strong>{" "}
+          </label>
+          <input
+            className="form-control"
+            type="text"
+            id=""
+            onChange={(e) =>
+              setDataIngreso({ ...dataIngreso, descripcion: e.target.value })
+            }
+            value={dataIngreso.inquilino}
+          />
         </div>
         <button
           onClick={(e) => {
             props.agregarData(true);
           }}
-          className=" w-100 btn btn-success d-block"
+          className=" w-100 btn bg-blue text-light d-block"
         >
-          Agregar
+          <i className="fas fa-check mr-2"></i> Agregar
         </button>
       </form>
-      {/* <button onClick={e=> {props.papi(flagAdd)}} className=" w-100 btn btn-success d-block">Vamos paapi</button> */}
     </div>
   );
 }

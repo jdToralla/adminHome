@@ -1,6 +1,6 @@
 {
   "name": "admincuentas",
-  "homepage":"https://jdToralla.github.io/adminHome",
+  "homepage": "https://jdToralla.github.io/adminHome",
   "version": "0.1.0",
   "private": true,
   "dependencies": {

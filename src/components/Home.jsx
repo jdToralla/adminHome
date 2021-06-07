@@ -7,7 +7,11 @@ import { firedb } from "../firebaseConfig";
 export default function Home() {
     
     useEffect(()=>{
-        calculo()
+      let idUser = localStorage.getItem('currentId')
+        if(idUser.length > 0){
+          calculo()
+        }
+
     },[])
 
     const [flagTable, setFlagTable] = useState(false)
@@ -15,6 +19,17 @@ export default function Home() {
     const [listEgresos, setListEgresos] = useState([])
     const [total, setTotal] = useState(0)
 
+    const calculo =async ()=>{
+
+      let idUser2 = await localStorage.getItem('currentId')
+      const {docs} = await firedb.collection(`totalCaja-${idUser2}`).get()
+      const newArray = docs.map(item=>(
+        {id:item.id,...item.data()}
+        ))    
+        
+        setTotal(newArray[1].total - newArray[0].total )
+    }
+    
     const formatoFecha =(fecha)=>{
         const f = fecha.split("-")
         switch (f[1]) {
@@ -48,17 +63,9 @@ export default function Home() {
         return f[2] + '-' +f[1] + '-' + f[0]
     }
 
-    const calculo =async ()=>{
-      const {docs} = await firedb.collection('totalCaja').get()
-      const newArray = docs.map(item=>(
-        {id:item.id,...item.data()}
-        ))    
-        
-        setTotal(newArray[1].total - newArray[0].total )
-    }
-
     const agregarData = (e)=>{
-      if(e === true){
+      
+      if(e){
         getData()
         calculo()
       }else{
@@ -69,8 +76,11 @@ export default function Home() {
 
     let suma = 0; 
     const getData = async()=>{
-      // console.log('obteniendo data Ingresos');
-      const {docs} = await firedb.collection('ingresos').orderBy("fecha","desc").get()
+      console.log('obteniendo data Ingresos');
+      let idUser = localStorage.getItem('currentId')
+
+      // const {docs} = await firedb.collection(`ingresos`).orderBy("fecha","desc").get()
+      const {docs} = await firedb.collection(`ingresos-${idUser}`).orderBy("fecha","desc").get()
       const newArray = docs.map(item=>(
          {id:item.id,...item.data()}
        ))        
@@ -80,18 +90,20 @@ export default function Home() {
           val.fecha =  formatoFecha(val.fecha)
         })
         
-        await firedb.collection("totalCaja").doc('total_ingresos').set({"total":suma})
+        await firedb.collection(`totalCaja-${idUser}`).doc(`total_ingresos-${idUser}`).set({"total":suma})
 
         setListIngresos(newArray)
     }
 
     const getDataE = async()=>{
-      // console.log('Obteniendo data Egresos');
-      const {docs} = await firedb.collection('egresos').orderBy("fecha","desc").get()
-       const newArray = docs.map(item=>(
+      
+      let idUser = localStorage.getItem('currentId')
+ 
+      const {docs} = await firedb.collection(`egresos-${idUser}`).orderBy("fecha","desc").get()
+
+      const newArray = docs.map(item=>(
          {id:item.id,...item.data()}
        ))        
-       
 
       
       newArray.forEach(val=>{
@@ -99,7 +111,7 @@ export default function Home() {
         val.fecha =  formatoFecha(val.fecha)
       })
       
-      await firedb.collection("totalCaja").doc('total_egresos').set({"total":suma})
+      await firedb.collection(`totalCaja-${idUser}`).doc(`total_egresos-${idUser}`).set({"total":suma})
 
       setListEgresos(newArray)
     }
@@ -113,14 +125,51 @@ export default function Home() {
       }
     }
 
+    const agregar =()=>{
+      console.log('Click');
+      listIngresos.forEach(val=>{
+        
+      let data ={
+          cantidad:val.cantidad,
+          fecha:val.fecha,
+          hora:val.hora,
+          descripcion: val.inquilino,
+          idUser:2
+      }
+
+      // let data ={
+      //   ...val,
+      //   idUser: 2,
+      //   descripcion: val.inquilino
+      // }
+
+      firedb
+      .collection(`ingresos-2`)
+      .add(data)
+      .then((r) => {
+
+        console.log('Listo');
+      })
+      .catch((e) => console.log(e));
+
+
+
+      })
+
+
+    }
+
     return (
     <div className="container">
+      {/* <div>
+        <button className="btn btn-primary" onClick={e=> agregar()}>add </button>
+      </div> */}
       <div className="row mt-4">
         <div className="col-12 col-sm-4 mb-5 mb-sm-0 order-2 order-md-1">
           <AddData calculo={calculo} agregarData={agregarData}></AddData>
         </div>
         <div className="col-12 col-sm-8 mt-4 mt-md-0 order-1 order-md-2">
-          <select onChange={e=>seleccion(e)} className="form-control bg-dark text-light" id="FormControlSelect1">
+          <select onChange={e=>seleccion(e)} className="form-control bg-blue text-light" id="FormControlSelect1">
             <option> Seleccione una tabla...</option>
             <option >Ingreso</option>
             <option >Egreso</option>

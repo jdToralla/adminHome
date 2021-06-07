@@ -30,6 +30,8 @@ function Login() {
             
             if(email.trim() === user.user && pass.trim() === user.pass){     
                 historial.push(`/home`)
+                localStorage.setItem('currentId', user.id)
+                window.location.reload();
             }else{
                
                 setMsgError('Usuario o contraseña incorrecta.')
@@ -42,8 +44,7 @@ function Login() {
     
     return (
         <div>
-        <div className="container">
-        
+        <div className="container">        
         <div className="row justify-content-center align-items-center mt-5">
             <div className="col-sm-12 col-md-4 shadow p-5 bg-light rounded-lg m-4 m-sm-0">
                 <form onSubmit={e=>registrarUsuario(e)}>
@@ -55,7 +56,7 @@ function Login() {
                         <label><i className="fas fa-key mr-2"></i>Contraseña</label>
                         <input onChange={e => setPass(e.target.value)} value={pass} className="form-control" type="password" dplaceholder="Contraseña..." />
                     </div>
-                    <button className="btn btn-dark btn-block mt-4">
+                    <button className="btn btn-dark bg-blue btn-block mt-4">
                             Ingresar
                     </button>
                 </form>
