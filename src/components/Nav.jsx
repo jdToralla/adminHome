@@ -30,7 +30,7 @@ export default function Nav() {
                     <i className="fas fa-calculator mr-2"></i>AdminCuentas    
                     </div>    
                     
-                    <div className={idUser.length > 0 ? "d-flexx" : "d-none"} onClick={e=>logout()} >
+                    <div className={idUser ? "d-flexx" : "d-none"} onClick={e=>logout()} >
                         <i className="fas fa-sign-out text-light mr-2"></i>Salir
                     </div>
                     </Link>
