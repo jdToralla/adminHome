@@ -160,7 +160,7 @@ export default function Home() {
     }
 
     return (
-    <div className="container">
+    <div className="container mt-5 pt-3">
       {/* <div>
         <button className="btn btn-primary" onClick={e=> agregar()}>add </button>
       </div> */}

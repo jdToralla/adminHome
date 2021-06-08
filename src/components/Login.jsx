@@ -45,7 +45,7 @@ function Login() {
     
     return (
         <div>
-        <div className="container">        
+        <div className="container  mt-5 pt-3">        
         <div className="row justify-content-center align-items-center mt-5">
             <div className="col-sm-12 col-md-4 shadow p-5 bg-light rounded-lg m-4 m-sm-0">
                 <form onSubmit={e=>registrarUsuario(e)}>

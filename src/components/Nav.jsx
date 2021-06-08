@@ -24,7 +24,7 @@ export default function Nav() {
 
     return (
         <div>
-            <nav className="navbar navbar-dark bg-blue mb-0 pb-0 py-3">
+            <nav className="navbar navbar-dark bg-blue mb-0 pb-0 py-3 fixed">
                 <div className="container">
                     <div className="navbar-brand d-flex justify-content-between w-100">
                     <div>
