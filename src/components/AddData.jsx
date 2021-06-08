@@ -3,22 +3,24 @@ import { firedb } from "../firebaseConfig";
 import sweet from "sweetalert";
 
 export default function AddData(props) {
+  
   const getHora = () => {
-    const date = new Date();
-    const hora =
-      date.getHours() + ":" + date.getMinutes() + ":" + date.getSeconds();
+    let date
+    date = new Date();
+    // let hora = date.getHours() + ":" + date.getUTCMinutes() + ":" + date.getSeconds();
+    let hora = date.getHours() + ":" + date.getMinutes()
     return hora;
   };
 
   let emptyIngreso = {
-    cantidad: 0,
+    cantidad: "",
     fecha: "",
     hora: getHora(),
     descripcion: "",
   };
 
   let emptyEgreso = {
-    cantidad: 0,
+    cantidad: "",
     fecha: "",
     hora: getHora(),
     descripcion: "",
@@ -50,14 +52,16 @@ export default function AddData(props) {
       .collection(`ingresos-${idUser}`)
       .add(dataIngreso)
       .then((r) => {
-
+        console.log('Data ingreso', dataIngreso.cantidad2);
         props.calculo()
         sweet({
           title: "Agregado correctamente",
           icon: "success",
           timer: 1000,
         });
+        dataIngreso.cantidad2 = ""
         setDataIngreso(emptyIngreso);
+        
       })
       .catch((e) => console.log(e));
   };
@@ -69,7 +73,7 @@ export default function AddData(props) {
       .collection(`egresos-${idUser}`)
       .add(dataEgreso)
       .then(async (r) => {
-
+        console.log('Data ingreso', dataEgreso.cantidad2);
         props.calculo()
         sweet({
           title: "Agregado correctamente",
@@ -77,6 +81,8 @@ export default function AddData(props) {
           timer: 1000,
         });
         setDataEgreso(emptyEgreso);
+        dataEgreso.cantidad2 = ""
+        
       })
       .catch((e) => console.log(e));
   };
@@ -88,7 +94,7 @@ export default function AddData(props) {
           <div className="col p-0">
             <div className="form-group ml-3">
               <label>
-                <strong> <i class="fas fa-money-bill-alt"></i> Egreso:</strong>{" "}
+                <strong> <i className="fas fa-money-bill-alt"></i> Egreso:</strong>{" "}
               </label>
               <input
                 className="form-control"
@@ -107,7 +113,7 @@ export default function AddData(props) {
             <div className="form-group">
               <label>
                 {" "}
-                <strong><i class="fas fa-calendar-day"></i> Fecha:</strong>{" "}
+                <strong><i className="fas fa-calendar-day"></i> Fecha:</strong>{" "}
               </label>
               <input
                 className="form-control"
@@ -156,7 +162,7 @@ export default function AddData(props) {
           <div className="col p-0">
             <div className="form-group ml-3">
               <label>
-                <strong> <i class="fas fa-money-bill-alt"></i> Ingreso:</strong>{" "}
+                <strong> <i className="fas fa-money-bill-alt"></i> Ingreso:</strong>{" "}
               </label>
               <input
                 onChange={(e) =>
@@ -177,7 +183,7 @@ export default function AddData(props) {
             <div className="form-group">
               <label>
                 {" "}
-                <strong><i class="fas fa-calendar-day"></i> Fecha:</strong>
+                <strong><i className="fas fa-calendar-day"></i> Fecha:</strong>
               </label>
               <input
                 onChange={(e) =>
@@ -222,7 +228,7 @@ export default function AddData(props) {
             onChange={(e) =>
               setDataIngreso({ ...dataIngreso, descripcion: e.target.value })
             }
-            value={dataIngreso.inquilino}
+            value={dataIngreso.descripcion}
           />
         </div>
         <button

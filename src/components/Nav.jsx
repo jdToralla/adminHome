@@ -10,6 +10,7 @@ export default function Nav() {
     const historial = useHistory()
     
     useEffect(()=>{
+        
         let idUser = localStorage.getItem('currentId')
         setIdUser(idUser)    
         
@@ -25,7 +26,7 @@ export default function Nav() {
         <div>
             <nav className="navbar navbar-dark bg-blue mb-0 pb-0 py-3">
                 <div className="container">
-                    <Link className="navbar-brand d-flex justify-content-between w-100">
+                    <div className="navbar-brand d-flex justify-content-between w-100">
                     <div>
                     <i className="fas fa-calculator mr-2"></i>AdminCuentas    
                     </div>    
@@ -33,7 +34,7 @@ export default function Nav() {
                     <div className={idUser ? "d-flexx" : "d-none"} onClick={e=>logout()} >
                         <i className="fas fa-sign-out text-light mr-2"></i>Salir
                     </div>
-                    </Link>
+                    </div>
                     {/* <div className="form-inline">
                         <input className="form-control" type="search" placeholder="Buscar..." aria-label="Search"/>
                         <button className="btn btn-success my-2 my-sm-0" type="submit"><i className="fas fa-search"></i> Buscar</button>

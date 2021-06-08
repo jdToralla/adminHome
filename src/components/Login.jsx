@@ -12,6 +12,7 @@ function Login() {
     const historial = useHistory()
 
     useEffect( ()=>{
+        localStorage.setItem('currentId','')
         getData()
     },[])
 
