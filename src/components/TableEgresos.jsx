@@ -5,14 +5,17 @@ import sweet from 'sweetalert'
 export default function TableEgresos(props) {
 
   useEffect(() => {
-    props.getDataE()
+    props.getDataEgresos()
   }, [])
 
   const eliminarEgreso = async (id) => {
     let idUser = localStorage.getItem('currentId')
+    console.log(id);
+    // console.log(idUser);
+    // console.log(props.listEgresos2);
     await firedb.collection(`egresos-${idUser}`).doc(id).delete().then(
       r => {
-        props.getDataE()
+        props.getDataEgresos()
         sweet({
           title: "Eliminado correctamente",
           icon: "success",

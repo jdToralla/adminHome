@@ -5,16 +5,16 @@ import sweet from 'sweetalert'
 export default function TableIngresos(props) {
       
     useEffect(()=>{     
-      props.getData()  
+      props.getDataIngresos()  
       // props.calculo()    
     },[])
 
-    const eliminarEgreso = async(id)=>{
-      
+    const eliminarIngreso = async(id)=>{
+      console.log(id);
       let idUser = localStorage.getItem('currentId')
       await firedb.collection(`ingresos-${idUser}`).doc(id).delete().then(
         r=> {
-          props.getData()
+          props.getDataIngresos()
           sweet({
             title: "Eliminado correctamente",
             icon: "success",
@@ -48,7 +48,7 @@ export default function TableIngresos(props) {
               <td>{item.descripcion}</td>
               <td>{item.fecha}</td>
               <td>{item.hora}</td>
-              <td><button onClick={e=>eliminarEgreso(item.id)}  className="btn btn-danger bg-red"><i className="fas fa-trash"></i></button></td>
+              <td><button onClick={e=>eliminarIngreso(item.id)}  className="btn btn-danger bg-red"><i className="fas fa-trash"></i></button></td>
             </tr>
             ))
           }

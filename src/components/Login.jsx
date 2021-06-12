@@ -31,6 +31,7 @@ function Login() {
             
             if(email.trim() === user.user && pass.trim() === user.pass){     
                 historial.push(`/home`)
+                localStorage.setItem('currentId', '')
                 localStorage.setItem('currentId', user.id)
                 window.location.reload();
             }else{
@@ -39,6 +40,7 @@ function Login() {
             }
 
         })
+        
         
     }
 

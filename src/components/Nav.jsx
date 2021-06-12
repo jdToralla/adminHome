@@ -11,8 +11,16 @@ export default function Nav() {
     
     useEffect(()=>{
         
-        let idUser = localStorage.getItem('currentId')
-        setIdUser(idUser)    
+        
+        // if(localStorage.getItem('currentId').length > 0){
+        //     console.log('Entro aqui primero 2');
+        //     // localStorage.setItem('currentId','')
+            
+        // }else{
+            console.log('Entro aqui final');
+            let idUser = localStorage.getItem('currentId')
+            setIdUser(idUser)    
+        // }
         
     },[])
 

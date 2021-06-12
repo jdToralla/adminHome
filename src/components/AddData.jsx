@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { firedb } from "../firebaseConfig";
-import sweet from "sweetalert";
+import * as _swal from 'sweetalert';
+
 
 export default function AddData(props) {
   
@@ -11,12 +12,13 @@ export default function AddData(props) {
     let hora = date.getHours() + ":" + date.getMinutes()
     return hora;
   };
-
+  
   let emptyIngreso = {
     cantidad: "",
     fecha: "",
     hora: getHora(),
     descripcion: "",
+    idUser2: parseInt(localStorage.getItem('currentId'))
   };
 
   let emptyEgreso = {
@@ -24,68 +26,107 @@ export default function AddData(props) {
     fecha: "",
     hora: getHora(),
     descripcion: "",
+    idUser2: parseInt(localStorage.getItem('currentId'))
   };
 
-  const [inquilinos, setInquilinos] = useState([]);
+  // const [inquilinos, setInquilinos] = useState([]);
   const [dataIngreso, setDataIngreso] = useState(emptyIngreso);
   const [dataEgreso, setDataEgreso] = useState(emptyEgreso);
   const [idUser, setIdUser] = useState('');
 
   useEffect(() => {
-    getDataInquilinos();
+    // getDataInquilinos();
     let idUser = localStorage.getItem('currentId')
     setIdUser(idUser)    
   }, []);
 
-  const getDataInquilinos = async () => {
-    console.log('Data de inquilinos');
-    const { docs } = await firedb.collection("inquilinos").get();
-    const newData = docs.map((item) => ({ id: item.id, ...item.data() }));
-    setInquilinos(newData);
-  };
+  // const getDataInquilinos = async () => {
+  //   console.log('Data de inquilinos');
+  //   const { docs } = await firedb.collection("inquilinos").get();
+  //   const newData = docs.map((item) => ({ id: item.id, ...item.data() }));
+  //   setInquilinos(newData);
+  // };
 
   const setIngreso = async (e) => {
     e.preventDefault();
     // let idUser = localStorage.getItem('currentId')
-
-    await firedb
-      .collection(`ingresos-${idUser}`)
-      .add(dataIngreso)
-      .then((r) => {
-        console.log('Data ingreso', dataIngreso.cantidad2);
-        props.calculo()
-        sweet({
-          title: "Agregado correctamente",
-          icon: "success",
-          timer: 1000,
-        });
-        dataIngreso.cantidad2 = ""
-        setDataIngreso(emptyIngreso);
-        
-      })
-      .catch((e) => console.log(e));
+    if(dataIngreso.fecha.length > 0 && dataIngreso.cantidad.length != 0 && dataIngreso.descripcion.length > 0){
+      await firedb
+        .collection(`ingresos-${idUser}`)
+        .add(dataIngreso)
+        .then((r) => {
+          console.log('Data ingreso', dataIngreso.cantidad2);
+          props.calculo()
+          // _swal({
+          //   title: "Agregado correctamente",
+          //   icon: "success",
+          //   timer: 1000,
+          // });
+          messageAlert('Agregado correctamente', 'success',800, false)
+          dataIngreso.cantidad2 = ""
+          setDataIngreso(emptyIngreso);
+          
+        })
+        .catch((e) => console.log(e));
+    }else{
+      messageAlert('Agregue todos los campos correspondientes', 'error',1200,false)
+    }
   };
 
   const setEgreso = async (e) => {
     e.preventDefault();
     // let idUser = localStorage.getItem('currentId')
-    await firedb
-      .collection(`egresos-${idUser}`)
-      .add(dataEgreso)
-      .then(async (r) => {
-        console.log('Data ingreso', dataEgreso.cantidad2);
-        props.calculo()
-        sweet({
-          title: "Agregado correctamente",
-          icon: "success",
-          timer: 1000,
-        });
-        setDataEgreso(emptyEgreso);
-        dataEgreso.cantidad2 = ""
-        
-      })
-      .catch((e) => console.log(e));
+    if(dataEgreso.fecha.length > 0 && dataEgreso.cantidad != 0 && dataEgreso.descripcion.length > 0){
+
+      await firedb
+        .collection(`egresos-${idUser}`)
+        .add(dataEgreso)
+        .then(async (r) => {
+          console.log('Data ingreso', dataEgreso.cantidad2);
+          props.calculo()
+          
+          // sweet({
+          //   title: "Agregado correctamente",
+          //   icon: "success",
+          //   timer: 1000,
+          // });
+          messageAlert('Agregado correctamente', 'success',800, false)
+  
+          setDataEgreso(emptyEgreso);
+          dataEgreso.cantidad2 = ""
+          
+        })
+        .catch((e) => console.log(e));
+    }else{
+      messageAlert('Agregue todos los campos correspondientes', 'error',1200,false)
+    }
   };
+
+  const messageAlert = (message, icon, timer,btn)=>{
+    
+    _swal({
+      title: message,
+      icon: icon,
+      timer: timer,
+      buttons: btn
+    })
+    // let Toast = _swal.mixin({
+    //   toast: true,
+    //   position: 'top-end',
+    //   showConfirmButton: false,
+    //   timer:timer ,
+    //   timerProgressBar: true
+    //   // didOpen: (toast) => {
+    //   //   toast.addEventListener('mouseenter', Swal.stopTimer)
+    //   //   toast.addEventListener('mouseleave', Swal.resumeTimer)
+    //   // }
+    // })
+    
+    // Toast.fire({
+    //   icon: icon,
+    //   title: message
+    // })
+  }
 
   return (
     <div className="w-100">
