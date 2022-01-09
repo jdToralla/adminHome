@@ -1,8 +1,9 @@
+import { HashRouter as Router, Route, Switch } from 'react-router-dom';
 import './App.css';
-import Nav from './components/Nav';
-import { HashRouter as Router, Switch, Route} from 'react-router-dom'
-import Login from './components/Login';
+import AddData from './components/AddData';
 import Home from './components/Home';
+import Login from './components/Login';
+import Nav from './components/Nav';
 
 function App() {
   
@@ -11,7 +12,9 @@ function App() {
         <Router>
             <Nav/> 
           <Switch>
+            <Route path="/add-data/:id"> <AddData/> </Route>
             <Route path="/home"> <Home/> </Route>
+            <Route path="/login"><Login/></Route>
             <Route path="/"><Login/></Route>
           </Switch>
         </Router>

@@ -1,36 +1,27 @@
-import React, { useState, useEffect } from "react";
-import AddData from "./AddData";
-import TableEgresos from "./TableEgresos";
-import TableIngresos from "./TableIngresos";
+import React, { useEffect, useState } from "react";
+import { useHistory } from 'react-router-dom';
+import * as _swal from 'sweetalert';
 import { firedb } from "../firebaseConfig";
 
 export default function Home() {
 
+  const historial = useHistory()
   useEffect(() => {
-    let idUser = localStorage.getItem('currentId')
-    if (idUser) {
-      calculo()
-    }
-
+    getData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const [flagTable, setFlagTable] = useState(false)
-  const [listIngresos, setListIngresos] = useState([])
-  const [listIngresosTmp, setListIngresosTmp] = useState([])
-  const [listEgresos, setListEgresos] = useState([])
-  const [listEgresosTmp, setListEgresosTmp] = useState([])
-  const [total, setTotal] = useState(0)
+  let calculoTotal = {
+    egresosTotal: 0,
+    ingresosTotal: 0,
+    saldoTotal: 0
+  };
 
-  const calculo = async () => {
+  const [flag, setFlag] = useState(false)
+  const [listData, setListData] = useState([])
+  // const [listDataTmp, setListDataTmp] = useState([])
+  const [sumaTotal, setSumaTotal] = useState(calculoTotal)
 
-    let idUser2 = await localStorage.getItem('currentId')
-    const { docs } = await firedb.collection(`totalCaja-${idUser2}`).get()
-    const newArray = docs.map(item => (
-      { id: item.id, ...item.data() }
-    ))
-
-    setTotal(newArray[1].total - newArray[0].total)
-  }
 
   const formatoFecha = (fecha) => {
     const f = fecha.split("-")
@@ -65,179 +56,263 @@ export default function Home() {
     return f[2] + '-' + f[1] + '-' + f[0]
   }
 
-  const agregarData = (e) => {
 
-    if (e) {
-      getDataIngresos()
-      calculo()
-    } else {
-      getDataEgresos()
-      calculo()
-    }
-  }
+  const getData = async () => {
+    setFlag(true)
 
-  let suma = 0;
-  const getDataIngresos = async () => {
-    console.log('obteniendo data Ingresos');
     let idUser = localStorage.getItem('currentId')
 
-    // const {docs} = await firedb.collection(`ingresos`).orderBy("fecha","desc").get()
-    const { docs } = await firedb.collection(`ingresos-${idUser}`).orderBy("fecha", "desc").get()
-
-    const newArray = docs.map(item => (
-      { id: item.id, ...item.data() }
-    ))
-    console.log(newArray);
-
-    newArray.forEach(val => {
-      suma += val.cantidad
-      val.fecha = formatoFecha(val.fecha)
-    })
-
-    await firedb.collection(`totalCaja-${idUser}`).doc(`total_ingresos-${idUser}`).set({ "total": suma })
-
-    setListIngresos(newArray)
-    setListIngresosTmp(newArray)
-  }
-
-  const getDataEgresos = async () => {
-    console.log('Entro a obtener data egreso');
-    let idUser = localStorage.getItem('currentId')
-    console.log('id usuario:', idUser);
-    const { docs } = await firedb.collection(`egresos-${idUser}`).orderBy("fecha", "desc").get()
-    // const {docs} = await firedb.collection(`egresos`).orderBy("fecha","desc").get()
+    const { docs } = await firedb.collection(`caja-chica`).where("idUser", "==", parseInt(idUser)).orderBy("fecha", "desc").get()
     const newArray = docs.map(item => (
       { id: item.id, ...item.data() }
     ))
 
-    console.log(newArray);
+    setFlag(false)
+    setListData(newArray)
+    // setListDataTmp(newArray)
+    calculate(newArray)
 
-    newArray.forEach(val => {
-      suma += val.cantidad
-      val.fecha = formatoFecha(val.fecha)
-    })
-
-    await firedb.collection(`totalCaja-${idUser}`).doc(`total_egresos-${idUser}`).set({ "total": suma })
-
-    setListEgresos(newArray)
-    setListEgresosTmp(newArray)
   }
 
 
-  const seleccion = (e) => {
-    console.log(e.target.value);
+  const seleccion = async (e) => {
 
     if (e.target.value === 'Egreso') {
-      console.log('Entre aqui');
-      // console.log(listEgresosTmp);
-      setListEgresos(listEgresosTmp)
-      // if(listEgresos.length > 0){
-      //   // getDataEgresos()
-      // }
-      setFlagTable(false)
+      console.log('Egreso');
+      // temp = listData.filter(val => val.tipo === 1)
+
+      const { docs } = await firedb.collection(`caja-chica`).where("idUser", "==", parseInt(localStorage.getItem('currentId'))).where("tipo", "==", 1).get()
+      const newArray = docs.map(item => (
+        { id: item.id, ...item.data() }
+      ))
+      setListData(newArray)
+
     } else if (e.target.value === 'Ingreso') {
-      setFlagTable(true)
+      console.log('Ingreso');
+      const { docs } = await firedb.collection(`caja-chica`).where("idUser", "==", parseInt(localStorage.getItem('currentId'))).where("tipo", "==", 2).get()
+      const newArray = docs.map(item => (
+        { id: item.id, ...item.data() }
+      ))
+      setListData(newArray)
+      // temp = listData.filter(val => val.tipo === 2)
+
+    } else {
+      getData()
     }
+
   }
 
-  const agregar = () => {
-    console.log('Click', listEgresos);
-    listEgresos.forEach(val => {
+  // const agregar = () => {
+  //   console.log('Click', listEgresos);
+  //   listEgresos.forEach(val => {
 
-      let data = {
-        cantidad: val.cantidad,
-        fecha: val.fecha,
-        hora: val.hora,
-        descripcion: val.descripcion,
-        idUser: 2
-      }
-      console.log(data);
+  //     let data = {
+  //       cantidad: val.cantidad,
+  //       fecha: val.fecha,
+  //       hora: val.hora,
+  //       descripcion: val.descripcion,
+  //       idUser: 2
+  //     }
+  //     console.log(data);
 
-      // let data ={
-      //   ...val,
-      //   idUser: 2,
-      //   // descripcion: val.inquilino
-      // }
+  //     // let data ={
+  //     //   ...val,
+  //     //   idUser: 2,
+  //     //   // descripcion: val.inquilino
+  //     // }
 
-      firedb
-        .collection(`egresos-2`)
-        .add(data)
-        .then((r) => {
+  //     firedb
+  //       .collection(`egresos-2`)
+  //       .add(data)
+  //       .then((r) => {
 
-          console.log('Listo');
-        })
-        .catch((e) => console.log(e));
-    })
-  }
+  //         console.log('Listo');
+  //       })
+  //       .catch((e) => console.log(e));
+  //   })
+  // }
 
   const searchByDate = async (date) => {
-    if(date){
-      console.log(date);
-    let idUser = localStorage.getItem('currentId')
-    const { docs } = await firedb.collection(`egresos-${idUser}`).where("fecha", "==", `${date}`).get()
-    const newArray = docs.map(item => (
-      { id: item.id, ...item.data() }
-    ))
+    if (date) {
 
-    console.log(newArray);
+      setFlag(true)
+      setListData([])
 
-    newArray.forEach(val => {
-      suma += val.cantidad
-      val.fecha = formatoFecha(val.fecha)
-    })
+      let idUser = localStorage.getItem('currentId')
+      const { docs } = await firedb.collection(`caja-chica`).where("idUser", "==", parseInt(idUser)).where("fecha", "==", `${date}`).get()
+      const newArray = docs.map(item => (
+        { id: item.id, ...item.data() }
+      ))
 
-    // await firedb.collection(`totalCaja-${idUser}`).doc(`total_egresos-${idUser}`).set({"total":suma})
-    setListEgresos(newArray)
-    }else{
-      if(flagTable === false){
-        setListEgresos(listEgresosTmp)
-      }else if(flagTable === true){
-        setListEgresos(listIngresosTmp)
-      }
+      console.log('Array fecha: ', newArray);
+      setListData(newArray)
+      setFlag(false)
+
+    } else {
+      getData()
     }
+  }
+
+  const addNewExpenseOrIncome = async (type) => {
+    historial.push(`/add-data/${type}`)
+  }
+
+  const eliminarEgreso = async (id, description) => {
+
+    _swal({
+      title: '¿Desea eliminar?',
+      text: `${description}`,
+      icon: 'warning',
+      buttons: ["Cancelar", "Si, eliminar"]
+    }).then(async (result) => {
+      if (result) {
+        await firedb.collection(`caja-chica`).doc(id).delete().then(
+          r => {
+            getData()
+            messageAlert('Eliminado correctamente', 'success', 1000, false)
+          }
+        ).catch(e => console.log(e))
+      }
+    })
 
   }
 
+  const calculate = (arrayData) => {
+
+    let sumEgresos = 0
+    let sumIngresos = 0
+
+    arrayData.forEach(val => {
+      if (val.tipo === 1) {
+        sumEgresos += val.cantidad
+      }
+
+      if (val.tipo === 2) {
+        sumIngresos += val.cantidad
+      }
+
+    })
+
+    let calculoTotal = {
+      egresosTotal: sumEgresos,
+      ingresosTotal: sumIngresos,
+      saldoTotal: sumIngresos - sumEgresos
+    };
+
+    setSumaTotal(calculoTotal)
+
+
+    console.log('Total egresos', sumEgresos);
+    console.log('Total ingresos', sumIngresos);
+
+  }
+
+  const messageAlert = (message, icon, timer, btn) => {
+    _swal({
+      title: message,
+      icon: icon,
+      timer: timer,
+      buttons: btn
+    })
+  }
 
   return (
-    <div className="container mt-5 pt-3">
+    <div className="container" style={{ paddingTop: 65 }}>
       {/* <div>
         <button className="btn btn-primary" onClick={e=> agregar()}>add </button>
       </div> */}
+      <div className="mt-2 mt-3 d-flex justify-content-between">
+        <button className="btn btn-warning" onClick={e => addNewExpenseOrIncome(1)}> <i className="fas fa-plus mr-2"></i> Nuevo egreso</button>
+        <button className="btn btn-success" onClick={e => addNewExpenseOrIncome(2)}> <i className="fas fa-plus mr-2"> </i> Nuevo ingreso</button>
+      </div>
+
       <div className="row mt-4">
-        {/* <input className="form-control col-6 mx-2" type="text" placeholder="Bucar por descripcion..."/>
-        <input onChange={(e) => searchByDate(e.target.value)}  className="form-control col-5 ml-2" type="date" /> */}
-        <div className="input-group mb-3 col-12 col-sm-6">
-          <div className="input-group-prepend">
-            <span className="input-group-text" id="basic-addon1"><i className="fas fa-search"></i></span>
+        <div className="row w-100 mx-1">
+          <div className="input-group col-5 px-1">
+            <div className="input-group-prepend">
+              <span className="input-group-text" id="basic-addon1"><i className="fas fa-calendar-alt"></i></span>
+            </div>
+            <input onChange={(e) => searchByDate(e.target.value)} className="form-control" type="date" />
           </div>
-          <input onChange={(e) => searchByDate(e.target.value)}  className="form-control" type="date" />
-        </div>
-        <div className="input-group mb-0 mb-sm-3 col-12 col-sm-6">
-          <div className="input-group-prepend">
-            <span className="input-group-text" id="basic-addon1"><i className="fas fa-search"></i></span>
+          <div className="input-group col-7 px-1">
+            <div className="input-group-prepend">
+              <span className="input-group-text" id="basic-addon1"><i className="fas fa-search"></i></span>
+            </div>
+            <input className="form-control" type="text" placeholder="Buscar..." style={{ zIndex: 0 }} />
           </div>
-          <input className="form-control" type="text" placeholder="Bucar por descripcion..."/>
+          <div className="col-12 px-1 mt-2">
+            <select onChange={e => seleccion(e)} className="form-control " id="FormControlSelect1">
+              <option>Todos</option>
+              <option>Ingreso</option>
+              <option>Egreso</option>
+            </select>
+          </div>
         </div>
       </div>
-      <div className="row mt-2">
-        <div className="col-12 col-sm-4 mb-5 mb-sm-0 order-2 order-md-1">
-          <AddData calculo={calculo} agregarData={agregarData}></AddData>
-        </div>
+      <div className="row mt-2" style={{maxHeight:'52vh', overflow:'auto'}}>
+        <table className="table table-sm bg-light mx-2 text-center" style={{ fontSize: 13.5 }}>
+          <thead className="">
+            <tr>
+              {/* <th scope="col">#</th> */}
+              <th scope="col">Cantidad</th>
+              <th scope="col">Descripción</th>
+              <th scope="col">Tipo</th>
+              <th scope="col">Fecha</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {flag ? <tr>
+              <td></td>
+              <td>
+                <div className="spinner-border" role="status">
+                  <span className="sr-only">Loading...</span>
+                </div>
+              </td>
+            </tr> : null}
+            {
+
+              listData.map((item, index) => (
+                <tr key={index}>
+                  {/* <th scope="row">{index + 1}</th> */}
+                  <td> Q {item.cantidad.toFixed(2)}</td>
+                  <td>{item.descripcion}</td>
+                  <td>{item.tipo === 1 ? 'Egreso' : 'Ingreso'}</td>
+                  <td>{item.fecha} {item.hora}</td>
+                  <td><button onClick={e => eliminarEgreso(item.id, item.descripcion)} className="btn btn-danger bg-red btn-sm"><i className="fas fa-trash"></i></button>  </td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+
+      </div>
+      {/* <div className="row">
         <div className="col-12 col-sm-8 mt-4 mt-md-0 order-1 order-md-2">
-          <select onClick={e => seleccion(e)} onChange={e => seleccion(e)} className="form-control bg-blue text-light" id="FormControlSelect1">
-            <option> Seleccione una tabla...</option>
-            <option>Ingreso</option>
-            <option>Egreso</option>
-          </select>
           <div className="mt-2 bg-light customTable">
             {flagTable ? <TableIngresos getDataIngresos={getDataIngresos} listIngresos2={listIngresos} /> : <TableEgresos getDataEgresos={getDataEgresos} calculo={calculo} listEgresos2={listEgresos} />}
           </div>
           <div className="bg-light d-flex justify-content-end pr-3 mt-2 mb-5 mb-md-0 w-100 h5">
             <strong className="pr-2"> Caja: </strong> Q {total}.00
-            </div>
+          </div>
         </div>
-      </div>
+      </div> */}
+      <table className="table table-bordered table-sm">
+        <tbody>
+          <tr>
+            <th className="d-flex justify-content-end">+ Total ingresos</th>
+            <td>Q {sumaTotal.ingresosTotal.toFixed(2)}</td>
+          </tr>
+          <tr >
+            <th className="d-flex justify-content-end">- Total egresos</th>
+            <td>Q {sumaTotal.egresosTotal.toFixed(2)}</td>
+          </tr>
+          <tr>
+            <th className="d-flex justify-content-end">Saldo</th>
+            <td>Q {sumaTotal.saldoTotal.toFixed(2)}</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   );
 }

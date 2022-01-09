@@ -16,3 +16,7 @@
     height: 380px;
     overflow: scroll;
   }
+
+.navbar{
+  z-index: 1000;
+}
