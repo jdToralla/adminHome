@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useHistory } from 'react-router-dom';
+import * as _swal from 'sweetalert';
 import './styles.css';
-
 
 export default function Nav() {
 
@@ -14,15 +14,24 @@ export default function Nav() {
     }, [])
 
     const logout = () => {
-        localStorage.setItem('currentId', '')
-        setIdUser('')
-        historial.push(`/`)
+
+        _swal({
+            title: '¿Desea salir?',
+            icon: 'warning',
+            buttons: ["Cancelar", "Si, salir"]
+        }).then(async (result) => {
+            if (result) {
+                localStorage.setItem('currentId', '')
+                historial.push(`/`)
+                setIdUser('')
+            }
+        })
     }
 
     return (
         <div>
             <nav className="navbar navbar-dark bg-blue mb-0 pb-0 py-3 fixed">
-                <div className="container">
+                <div className="container" style={{paddingTop:20}}>
                     <div className="navbar-brand d-flex justify-content-between w-100">
                         <div>
                             <i className="fas fa-calculator mr-2"></i>AdminCuentas
@@ -35,15 +44,8 @@ export default function Nav() {
                         <i className="fas fa-bars"></i>
                     </div> */}
                     </div>
-                    {/* <div className="form-inline">
-                        <input className="form-control" type="search" placeholder="Buscar..." aria-label="Search"/>
-                        <button className="btn btn-success my-2 my-sm-0" type="submit"><i className="fas fa-search"></i> Buscar</button>
-                    </div> */}
                 </div>
             </nav>
-            <div className="menu">
-
-            </div>
         </div>
     )
 }

@@ -90,7 +90,7 @@ export default function AddData(props) {
   }
 
   return (
-    <div className="w-100 px-3" style={{ paddingTop: 90 }}>
+    <div className="w-100 px-3" style={{ paddingTop: 115 }}>
        <form onSubmit={(e) => setEgreso(e)} className="w-100 bg-yellow p-2" style={{display: id === '1'? 'block': 'none'}} >
         <div className="row">
           <div className="col p-0">

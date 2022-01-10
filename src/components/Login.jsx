@@ -5,7 +5,7 @@ import './styles.css'
 
 function Login() {
     
-    const [email, setEmail] = useState('')
+    const [email, setEmail] = useState('norma77')
     const [pass, setPass] = useState('toralla')
     const [msgerror, setMsgError] = useState(null)
     const [dataUser, setDataUser] = useState([])
@@ -47,13 +47,13 @@ function Login() {
     
     return (
         <div>
-        <div className="container  mt-5 pt-3">        
-        <div className="row justify-content-center align-items-center mt-5">
+        <div className="container">        
+        <div className="row justify-content-center align-items-center" style={{ paddingTop: 120 }}>
             <div className="col-sm-12 col-md-4 shadow p-5 bg-light rounded-lg m-4 m-sm-0">
                 <form onSubmit={e=>registrarUsuario(e)}>
                     <div className="form-group">
                         <label><i className="fas fa-user mr-2"></i>Usuario</label>
-                        <input onChange={e => setEmail(e.target.value)} value={email} className="form-control" type="text" placeholder="Email..." />
+                        <input onChange={e => setEmail(e.target.value)} value={email} className="form-control" type="text" placeholder="Usuario..." />
                     </div>
                     <div className="form-group">
                         <label><i className="fas fa-key mr-2"></i>Contraseña</label>

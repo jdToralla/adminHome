@@ -76,7 +76,8 @@ export default function Home() {
 
 
   const seleccion = async (e) => {
-
+    setListData([])
+    setFlag(true)
     if (e.target.value === 'Egreso') {
       console.log('Egreso');
       // temp = listData.filter(val => val.tipo === 1)
@@ -86,6 +87,7 @@ export default function Home() {
         { id: item.id, ...item.data() }
       ))
       setListData(newArray)
+      setFlag(false)
 
     } else if (e.target.value === 'Ingreso') {
       console.log('Ingreso');
@@ -94,6 +96,7 @@ export default function Home() {
         { id: item.id, ...item.data() }
       ))
       setListData(newArray)
+      setFlag(false)
       // temp = listData.filter(val => val.tipo === 2)
 
     } else {
@@ -200,11 +203,6 @@ export default function Home() {
     };
 
     setSumaTotal(calculoTotal)
-
-
-    console.log('Total egresos', sumEgresos);
-    console.log('Total ingresos', sumIngresos);
-
   }
 
   const messageAlert = (message, icon, timer, btn) => {
@@ -217,13 +215,13 @@ export default function Home() {
   }
 
   return (
-    <div className="container" style={{ paddingTop: 65 }}>
+    <div className="container" style={{ paddingTop: 85 }}>
       {/* <div>
         <button className="btn btn-primary" onClick={e=> agregar()}>add </button>
       </div> */}
       <div className="mt-2 mt-3 d-flex justify-content-between">
-        <button className="btn btn-warning" onClick={e => addNewExpenseOrIncome(1)}> <i className="fas fa-plus mr-2"></i> Nuevo egreso</button>
-        <button className="btn btn-success" onClick={e => addNewExpenseOrIncome(2)}> <i className="fas fa-plus mr-2"> </i> Nuevo ingreso</button>
+        <button className="btn btn-warning btn-sm" onClick={e => addNewExpenseOrIncome(1)}> <i className="fas fa-plus mr-2"></i> Nuevo egreso</button>
+        <button className="btn btn-success btn-sm" onClick={e => addNewExpenseOrIncome(2)}> <i className="fas fa-plus mr-2"> </i> Nuevo ingreso</button>
       </div>
 
       <div className="row mt-4">
@@ -232,7 +230,7 @@ export default function Home() {
             <div className="input-group-prepend">
               <span className="input-group-text" id="basic-addon1"><i className="fas fa-calendar-alt"></i></span>
             </div>
-            <input onChange={(e) => searchByDate(e.target.value)} className="form-control" type="date" />
+            <input onChange={(e) => searchByDate(e.target.value)} className="form-control" type="date" placeholder="dd/mm/aaaa" style={{fontSize:10, height:'100%'}}/>
           </div>
           <div className="input-group col-7 px-1">
             <div className="input-group-prepend">
@@ -243,13 +241,13 @@ export default function Home() {
           <div className="col-12 px-1 mt-2">
             <select onChange={e => seleccion(e)} className="form-control " id="FormControlSelect1">
               <option>Todos</option>
-              <option>Ingreso</option>
+              <option>Ingreso</option> 
               <option>Egreso</option>
             </select>
           </div>
         </div>
       </div>
-      <div className="row mt-2" style={{maxHeight:'52vh', overflow:'auto'}}>
+      <div className="row mt-2" style={{maxHeight:'47vh', overflow:'auto'}}>
         <table className="table table-sm bg-light mx-2 text-center" style={{ fontSize: 13.5 }}>
           <thead className="">
             <tr>
@@ -275,7 +273,7 @@ export default function Home() {
               listData.map((item, index) => (
                 <tr key={index}>
                   {/* <th scope="row">{index + 1}</th> */}
-                  <td> Q {item.cantidad.toFixed(2)}</td>
+                  <td>{item.cantidad.toFixed(2)}</td>
                   <td>{item.descripcion}</td>
                   <td>{item.tipo === 1 ? 'Egreso' : 'Ingreso'}</td>
                   <td>{item.fecha} {item.hora}</td>
@@ -297,7 +295,7 @@ export default function Home() {
           </div>
         </div>
       </div> */}
-      <table className="table table-bordered table-sm">
+      <table className="table table-sm mx-2" style={{ fontSize: 13.5 }}>
         <tbody>
           <tr>
             <th className="d-flex justify-content-end">+ Total ingresos</th>
