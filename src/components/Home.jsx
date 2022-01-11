@@ -220,24 +220,24 @@ export default function Home() {
         <button className="btn btn-primary" onClick={e=> agregar()}>add </button>
       </div> */}
       <div className="mt-2 mt-3 d-flex justify-content-between">
-        <button className="btn btn-warning btn-sm" onClick={e => addNewExpenseOrIncome(1)}> <i className="fas fa-plus mr-2"></i> Nuevo egreso</button>
         <button className="btn btn-success btn-sm" onClick={e => addNewExpenseOrIncome(2)}> <i className="fas fa-plus mr-2"> </i> Nuevo ingreso</button>
+        <button className="btn btn-warning btn-sm" onClick={e => addNewExpenseOrIncome(1)}> <i className="fas fa-plus mr-2"></i> Nuevo egreso</button>
       </div>
 
       <div className="row mt-4">
         <div className="row w-100 mx-1">
-          <div className="input-group col-5 px-1">
+          <div className="input-group col-12 px-1">
             <div className="input-group-prepend">
               <span className="input-group-text" id="basic-addon1"><i className="fas fa-calendar-alt"></i></span>
             </div>
             <input onChange={(e) => searchByDate(e.target.value)} className="form-control" type="date" placeholder="dd/mm/aaaa" style={{fontSize:10, height:'100%'}}/>
           </div>
-          <div className="input-group col-7 px-1">
+          {/* <div className="input-group col-7 px-1">
             <div className="input-group-prepend">
               <span className="input-group-text" id="basic-addon1"><i className="fas fa-search"></i></span>
             </div>
             <input className="form-control" type="text" placeholder="Buscar..." style={{ zIndex: 0 }} />
-          </div>
+          </div> */}
           <div className="col-12 px-1 mt-2">
             <select onChange={e => seleccion(e)} className="form-control " id="FormControlSelect1">
               <option>Todos</option>
@@ -275,7 +275,7 @@ export default function Home() {
                   {/* <th scope="row">{index + 1}</th> */}
                   <td>{item.cantidad.toFixed(2)}</td>
                   <td>{item.descripcion}</td>
-                  <td>{item.tipo === 1 ? 'Egreso' : 'Ingreso'}</td>
+                  <td > <span className={`${  item.tipo === 1 ? 'bg-warning':'bg-success' } px-1`} style={{borderRadius:5}}>{item.tipo === 1 ? 'Egreso' : 'Ingreso'}</span></td>
                   <td>{item.fecha} {item.hora}</td>
                   <td><button onClick={e => eliminarEgreso(item.id, item.descripcion)} className="btn btn-danger bg-red btn-sm"><i className="fas fa-trash"></i></button>  </td>
                 </tr>

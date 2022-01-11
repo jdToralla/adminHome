@@ -6,7 +6,7 @@ import './styles.css'
 function Login() {
     
     const [email, setEmail] = useState('norma77')
-    const [pass, setPass] = useState('toralla')
+    const [pass, setPass] = useState('toralla12')
     const [msgerror, setMsgError] = useState(null)
     const [dataUser, setDataUser] = useState([])
     const historial = useHistory()
