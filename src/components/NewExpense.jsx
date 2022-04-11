@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import * as _swal from 'sweetalert';
 import { firedb } from "../firebaseConfig";
 
@@ -85,7 +85,7 @@ export default function NewExpense() {
               </label>
               <input
                 className="form-control"
-                type="number"
+                type="text"
                 onChange={(e) =>
                   setDataEgreso({
                     ...dataEgreso,

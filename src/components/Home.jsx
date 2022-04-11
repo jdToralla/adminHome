@@ -1,77 +1,60 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { Button, Modal } from 'react-bootstrap';
 import { useHistory } from 'react-router-dom';
 import * as _swal from 'sweetalert';
 import { firedb } from "../firebaseConfig";
 
+let calculoTotal = {
+  egresosTotal: 0,
+  ingresosTotal: 0,
+  saldoTotal: 0
+};
+
+const dataE = {
+  id: '',
+  cantidad: '',
+  descripcion: '',
+  newDescripcion: '',
+  tipo: '',
+  fecha: ''
+}
+
 export default function Home() {
+
 
   const historial = useHistory()
   useEffect(() => {
     getData()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  let calculoTotal = {
-    egresosTotal: 0,
-    ingresosTotal: 0,
-    saldoTotal: 0
-  };
 
   const [flag, setFlag] = useState(false)
   const [listData, setListData] = useState([])
-  // const [listDataTmp, setListDataTmp] = useState([])
   const [sumaTotal, setSumaTotal] = useState(calculoTotal)
-
-
-  const formatoFecha = (fecha) => {
-    const f = fecha.split("-")
-    switch (f[1]) {
-      case '01': f[1] = 'Ene'
-        break;
-      case '02': f[1] = 'Feb'
-        break;
-      case '03': f[1] = 'Mar'
-        break;
-      case '04': f[1] = 'Abr'
-        break;
-      case '05': f[1] = 'May'
-        break;
-      case '06': f[1] = 'Jun'
-        break;
-      case '07': f[1] = 'Jul'
-        break;
-      case '08': f[1] = 'Ago'
-        break;
-      case '09': f[1] = 'Sep'
-        break;
-      case '10': f[1] = 'Oct'
-        break;
-      case '11': f[1] = 'Nov'
-        break;
-      case '12': f[1] = 'Dic'
-        break;
-      default:
-        break;
-    }
-    return f[2] + '-' + f[1] + '-' + f[0]
-  }
-
+  const [show, setShow] = useState(false);
+  const handleClose = () => setShow(false);
+  const [dataEdit, setDataEdit] = useState(dataE)
 
   const getData = async () => {
     setFlag(true)
 
     let idUser = localStorage.getItem('currentId')
-
     const { docs } = await firedb.collection(`caja-chica`).where("idUser", "==", parseInt(idUser)).orderBy("fecha", "desc").get()
     const newArray = docs.map(item => (
       { id: item.id, ...item.data() }
     ))
+    newArray.map(v => {
+      return v.fecha = dataFormate(v.fecha)
+    })
 
     setFlag(false)
     setListData(newArray)
-    // setListDataTmp(newArray)
     calculate(newArray)
 
+  }
+
+  const dataFormate = (date) => {
+    let d = date.split('-')
+    return `${d[2]}/${d[1]}/${d[0]}`
   }
 
 
@@ -79,8 +62,6 @@ export default function Home() {
     setListData([])
     setFlag(true)
     if (e.target.value === 'Egreso') {
-      console.log('Egreso');
-      // temp = listData.filter(val => val.tipo === 1)
 
       const { docs } = await firedb.collection(`caja-chica`).where("idUser", "==", parseInt(localStorage.getItem('currentId'))).where("tipo", "==", 1).get()
       const newArray = docs.map(item => (
@@ -90,50 +71,19 @@ export default function Home() {
       setFlag(false)
 
     } else if (e.target.value === 'Ingreso') {
-      console.log('Ingreso');
+
       const { docs } = await firedb.collection(`caja-chica`).where("idUser", "==", parseInt(localStorage.getItem('currentId'))).where("tipo", "==", 2).get()
       const newArray = docs.map(item => (
         { id: item.id, ...item.data() }
       ))
       setListData(newArray)
       setFlag(false)
-      // temp = listData.filter(val => val.tipo === 2)
-
     } else {
       getData()
     }
 
   }
 
-  // const agregar = () => {
-  //   console.log('Click', listEgresos);
-  //   listEgresos.forEach(val => {
-
-  //     let data = {
-  //       cantidad: val.cantidad,
-  //       fecha: val.fecha,
-  //       hora: val.hora,
-  //       descripcion: val.descripcion,
-  //       idUser: 2
-  //     }
-  //     console.log(data);
-
-  //     // let data ={
-  //     //   ...val,
-  //     //   idUser: 2,
-  //     //   // descripcion: val.inquilino
-  //     // }
-
-  //     firedb
-  //       .collection(`egresos-2`)
-  //       .add(data)
-  //       .then((r) => {
-
-  //         console.log('Listo');
-  //       })
-  //       .catch((e) => console.log(e));
-  //   })
-  // }
 
   const searchByDate = async (date) => {
     if (date) {
@@ -214,6 +164,63 @@ export default function Home() {
     })
   }
 
+  const handleShow = (id, item) => {
+    console.log('Abrir', id, item);
+    setDataEdit(item)
+    setShow(true);
+  }
+
+  const saveEditRecord = () => {
+    _swal({
+      title: '¿Desea editar el registro?',
+      icon: 'info',
+      buttons: ["Cancelar", "Si, editar"]
+    }).then(async (result) => {
+      if (result) {
+        console.log('Data edit: ', dataEdit);
+
+        setShow(false)
+        await firedb.collection('caja-chica').doc(dataEdit.id).update({
+          descripcion: dataEdit.newDescripcion
+        }).catch(e => console.log(e))
+        getData()
+      }
+    })
+
+  }
+
+
+  // const columns = [
+  //   {
+  //     name: 'Cantidad',
+  //     selector: row => row.cantidad,
+  //     sortable: true,
+  //   },
+  //   {
+  //     name: 'Descripción',
+  //     selector: row => row.descripcion,
+  //     sortable: true,
+  //   },
+  //   {
+  //     name: 'Fecha',
+  //     selector: row => row.fecha,
+  //     sortable: true,
+  //   },
+  //   {
+  //     name: 'Tipo',
+  //     selector: row => row.tipo,
+  //     sortable: true,
+  //   },
+  //   {
+  //     name: 'Descripción',
+  //     selector: row => row.descripcion,
+  //     sortable: true,
+  //     button: true,
+  //     icon: 'pencil'
+  //   },
+  // ];
+
+
   return (
     <div className="container" style={{ paddingTop: 85 }}>
       {/* <div>
@@ -230,7 +237,7 @@ export default function Home() {
             <div className="input-group-prepend">
               <span className="input-group-text" id="basic-addon1"><i className="fas fa-calendar-alt"></i></span>
             </div>
-            <input onChange={(e) => searchByDate(e.target.value)} className="form-control" type="date" placeholder="dd/mm/aaaa" style={{fontSize:10, height:'100%'}}/>
+            <input onChange={(e) => searchByDate(e.target.value)} className="form-control" type="date" placeholder="dd/mm/aaaa" style={{ fontSize: 10, height: '100%' }} />
           </div>
           {/* <div className="input-group col-7 px-1">
             <div className="input-group-prepend">
@@ -239,15 +246,15 @@ export default function Home() {
             <input className="form-control" type="text" placeholder="Buscar..." style={{ zIndex: 0 }} />
           </div> */}
           <div className="col-12 px-1 mt-2">
-            <select onChange={e => seleccion(e)} className="form-control " id="FormControlSelect1">
+            <select onChange={e => seleccion(e)} className="form-control" id="FormControlSelect1" style={{ fontSize: 10, height: '100%' }}>
               <option>Todos</option>
-              <option>Ingreso</option> 
+              <option>Ingreso</option>
               <option>Egreso</option>
             </select>
           </div>
         </div>
       </div>
-      <div className="row mt-2" style={{maxHeight:'47vh', overflow:'auto'}}>
+      <div className="row mt-2" style={{ maxHeight: '47vh', overflow: 'auto' }}>
         <table className="table table-sm bg-light mx-2 text-center" style={{ fontSize: 13.5 }}>
           <thead className="">
             <tr>
@@ -256,6 +263,7 @@ export default function Home() {
               <th scope="col">Descripción</th>
               <th scope="col">Tipo</th>
               <th scope="col">Fecha</th>
+              <th scope="col"></th>
               <th scope="col"></th>
             </tr>
           </thead>
@@ -275,9 +283,10 @@ export default function Home() {
                   {/* <th scope="row">{index + 1}</th> */}
                   <td>{item.cantidad.toFixed(2)}</td>
                   <td>{item.descripcion}</td>
-                  <td > <span className={`${  item.tipo === 1 ? 'bg-warning':'bg-success' } px-1`} style={{borderRadius:5}}>{item.tipo === 1 ? 'Egreso' : 'Ingreso'}</span></td>
+                  <td > <span className={`${item.tipo === 1 ? 'bg-warning' : 'bg-success'} px-1`} style={{ borderRadius: 5 }}>{item.tipo === 1 ? 'Egreso' : 'Ingreso'}</span></td>
                   <td>{item.fecha} {item.hora}</td>
-                  <td><button onClick={e => eliminarEgreso(item.id, item.descripcion)} className="btn btn-danger bg-red btn-sm"><i className="fas fa-trash"></i></button>  </td>
+                  <td><button onClick={e => eliminarEgreso(item.id, item.descripcion)} className="btn btn-danger btn-sm"><i className="fas fa-trash"></i></button>  </td>
+                  <td><button onClick={e => handleShow(item.id, item)} className="btn btn-warning btn-sm"><i className="fas fa-pencil"></i></button>  </td>
                 </tr>
               ))
             }
@@ -285,16 +294,41 @@ export default function Home() {
         </table>
 
       </div>
-      {/* <div className="row">
-        <div className="col-12 col-sm-8 mt-4 mt-md-0 order-1 order-md-2">
-          <div className="mt-2 bg-light customTable">
-            {flagTable ? <TableIngresos getDataIngresos={getDataIngresos} listIngresos2={listIngresos} /> : <TableEgresos getDataEgresos={getDataEgresos} calculo={calculo} listEgresos2={listEgresos} />}
-          </div>
-          <div className="bg-light d-flex justify-content-end pr-3 mt-2 mb-5 mb-md-0 w-100 h5">
-            <strong className="pr-2"> Caja: </strong> Q {total}.00
-          </div>
-        </div>
+      {/* <div>
+        <DataTable
+          columns={columns}
+          data={listData}
+          fixedHeader
+        />
+
       </div> */}
+
+      {/* <Button variant="primary" onClick={handleShow}>
+        Launch demo modal
+      </Button> */}
+
+      <Modal show={show} onHide={handleClose} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Editar registro</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <div className="form-group">
+            <label htmlFor="description"><b>Descripción:</b> {dataEdit.descripcion}</label>
+            <textarea placeholder="Escriba la nueva descripcion" onChange={e => setDataEdit({ ...dataEdit, newDescripcion: e.target.value })} type="email"  className="form-control mt-2" id="description" aria-describedby="emailHelp" />
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleClose}>
+            <i className="fas fa-times mr-2"></i>
+            Cancelar
+          </Button>
+          <Button variant="primary" onClick={saveEditRecord}>
+            <i className="fas fa-check mr-2"></i>
+            Guardar cambios
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
       <table className="table table-sm mx-2" style={{ fontSize: 13.5 }}>
         <tbody>
           <tr>

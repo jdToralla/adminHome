@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useHistory, useParams } from 'react-router-dom';
 import * as _swal from 'sweetalert';
 import { firedb } from "../firebaseConfig";
-
 
 export default function AddData(props) {
   
@@ -45,6 +44,8 @@ export default function AddData(props) {
 
     e.preventDefault();
     if(dataIngreso.fecha.length > 0 && dataIngreso.cantidad.length !== 0 && dataIngreso.descripcion.length > 0){
+     
+      dataIngreso.cantidad = parseFloat(dataIngreso.cantidad)
       await firedb
         .collection(`caja-chica`)
         .add(dataIngreso)
@@ -64,7 +65,7 @@ export default function AddData(props) {
   const setEgreso = async (e) => {
     e.preventDefault();
     if(dataEgreso.fecha.length > 0 && dataEgreso.cantidad !== 0 && dataEgreso.descripcion.length > 0){
-
+      dataEgreso.cantidad = parseFloat(dataEgreso.cantidad)
       await firedb
         .collection(`caja-chica`)
         .add(dataEgreso)
@@ -100,11 +101,11 @@ export default function AddData(props) {
               </label>
               <input
                 className="form-control"
-                type="number"
+                type="text"
                 onChange={(e) =>
                   setDataEgreso({
                     ...dataEgreso,
-                    cantidad: Number(e.target.value),
+                    cantidad: e.target.value,
                   })
                 }
                 value={dataEgreso.cantidad}
@@ -172,19 +173,18 @@ export default function AddData(props) {
           <div className="col p-0">
             <div className="form-group ml-3">
               <label>
-                <strong> <i className="fas fa-money-bill-alt"></i> Ingreso:</strong>{" "}
+                <strong> <i className="fas fa-money-bill-alt"></i> Ingreso:</strong>
               </label>
               <input
                 onChange={(e) =>
                   setDataIngreso({
                     ...dataIngreso,
-                    cantidad: Number(e.target.value),
+                    cantidad: e.target.value,
                   })
                 }
                 value={dataIngreso.cantidad}
                 className="form-control"
-                min="0"
-                type="number"
+                type="text"
                 id=""
               />
             </div>
