@@ -1,22 +1,96 @@
-*{
-  font-family: 'Roboto';
+:root {
+  --primary: #4E44EB;
+  --primary-hover: #3D34DB;
+  --primary-light: #6C64F8;
+  --primary-subtle: #EEF0FF;
+  --primary-gradient: linear-gradient(135deg, #4E44EB 0%, #6E66FA 100%);
+
+  --secondary: #FF8E6E;
+  --secondary-hover: #F27854;
+  --secondary-light: #FFA58B;
+  --secondary-subtle: #FFF0EB;
+  --secondary-gradient: linear-gradient(135deg, #FFA283 0%, #F46F5F 100%);
+
+  --accent-purple: #8B5CF6;
+  --accent-cyan: #06B6D4;
+  --accent-green: #10B981;
+
+  --bg-canvas: #FAF4EF;
+  --bg-canvas-subtle: #FFF7F2;
+  --bg-card: #FFFFFF;
+  --bg-card-muted: #F8F9FD;
+
+  --text-main: #1E1F30;
+  --text-muted: #8E92A4;
+  --text-light: #FFFFFF;
+
+  --border-subtle: #F0EDEB;
+  --border-focus: #4E44EB;
+
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 10px 30px rgba(78, 68, 235, 0.08), 0 2px 8px rgba(0, 0, 0, 0.03);
+  --shadow-lg: 0 18px 45px rgba(78, 68, 235, 0.12), 0 4px 14px rgba(0, 0, 0, 0.04);
+  --shadow-glow: 0 8px 24px rgba(78, 68, 235, 0.35);
+
+  --radius-xs: 8px;
+  --radius-sm: 12px;
+  --radius-md: 18px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+  --radius-full: 9999px;
 }
 
-.fondo{
-    background: rgb(213, 217, 219);
-    /* background: url('https://firebasestorage.googleapis.com/v0/b/admincuentas-c08f5.appspot.com/o/fondo.jpg?alt=media&token=83671e88-587d-4384-a9d8-e6c977bcdb29'); */
-    background-position: center;
-    background-size: cover;
-    min-height: 100vh;
-    height: 100%;
-  }
-  
+* {
+  font-family: 'Plus Jakarta Sans', 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  box-sizing: border-box;
+}
 
-.customTable{
-    height: 380px;
-    overflow: scroll;
-  }
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-canvas);
+  color: var(--text-main);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
 
-.navbar{
-  z-index: 1000;
+.fondo {
+  background-color: var(--bg-canvas);
+  background-image: 
+    radial-gradient(at 15% 15%, rgba(255, 142, 110, 0.12) 0px, transparent 45%),
+    radial-gradient(at 85% 85%, rgba(78, 68, 235, 0.08) 0px, transparent 50%),
+    radial-gradient(at 50% 0%, rgba(255, 240, 235, 0.5) 0px, transparent 60%);
+  background-attachment: fixed;
+  min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+/* Ensure container has exact mobile breathing room on iPhone 16 (393px) */
+@media (max-width: 576px) {
+  .container {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #DFDCE5;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #C4C0D0;
 }
