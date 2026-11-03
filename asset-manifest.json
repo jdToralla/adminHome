@@ -1,11 +1,11 @@
 {
   "files": {
-    "main.css": "/adminHome/static/css/main.30d52cc0.css",
-    "main.js": "/adminHome/static/js/main.cd553081.js",
+    "main.css": "/adminHome/static/css/main.6d4b7fe9.css",
+    "main.js": "/adminHome/static/js/main.aea53754.js",
     "index.html": "/adminHome/index.html"
   },
   "entrypoints": [
-    "static/css/main.30d52cc0.css",
-    "static/js/main.cd553081.js"
+    "static/css/main.6d4b7fe9.css",
+    "static/js/main.aea53754.js"
   ]
 }
