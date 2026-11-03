@@ -4,6 +4,13 @@ import _swal from 'sweetalert';
 import { firedb } from "../firebaseConfig";
 import './styles.css';
 
+const parseUserId = (id) => {
+  if (id === null || id === undefined) return '';
+  const str = id.toString().trim();
+  const num = parseInt(str, 10);
+  return !isNaN(num) && num.toString() === str ? num : str;
+};
+
 export default function NewExpense() {
   const history = useHistory();
 
@@ -57,7 +64,7 @@ export default function NewExpense() {
       fecha: fecha,
       hora: hora || getHora(),
       descripcion: descripcion.trim() || 'Egreso',
-      idUser: parseInt(currentUserId),
+      idUser: parseUserId(currentUserId),
       tipo: 1
     };
 

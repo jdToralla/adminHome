@@ -1,16 +1,23 @@
 import React, { useEffect, useState } from "react";
 import { useHistory, useLocation } from 'react-router-dom';
 import _swal from 'sweetalert';
+import { auth } from '../firebaseConfig';
 import './styles.css';
 
 export default function Nav() {
   const [idUser, setIdUser] = useState('');
+  const [userName, setUserName] = useState('Usuario');
+  const [userPhoto, setUserPhoto] = useState('');
   const historial = useHistory();
   const location = useLocation();
 
   useEffect(() => {
     const current = localStorage.getItem('currentId');
+    const name = localStorage.getItem('currentUserName');
+    const photo = localStorage.getItem('currentUserPhoto');
     setIdUser(current || '');
+    if (name) setUserName(name);
+    if (photo) setUserPhoto(photo);
   }, [location.pathname]);
 
   const logout = () => {
@@ -20,9 +27,17 @@ export default function Nav() {
       icon: 'warning',
       buttons: ['Cancelar', 'Sí, salir'],
       dangerMode: true,
-    }).then((result) => {
+    }).then(async (result) => {
       if (result) {
+        try {
+          await auth.signOut();
+        } catch (e) {
+          console.log('Firebase sign out:', e);
+        }
         localStorage.setItem('currentId', '');
+        localStorage.setItem('currentUserEmail', '');
+        localStorage.setItem('currentUserName', '');
+        localStorage.setItem('currentUserPhoto', '');
         setIdUser('');
         historial.push('/');
       }
@@ -102,16 +117,26 @@ export default function Nav() {
             <div className="d-flex align-items-center" style={{ gap: '10px' }}>
               <div className="nav-user-pill d-none d-sm-flex align-items-center">
                 <img
-                  src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=120&q=80"
+                  src={userPhoto || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=120&q=80"}
                   alt="Usuario"
                   className="user-avatar-img mr-2"
                   onError={(e) => {
-                    e.target.style.display = 'none';
+                    e.target.src = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=120&q=80";
                   }}
                 />
-                <div className="d-flex flex-column mr-2">
-                  <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#1E1F30', lineHeight: 1.1 }}>
-                    Usuario
+                <div className="d-flex flex-column mr-2" style={{ maxWidth: '120px' }}>
+                  <span
+                    style={{
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      color: '#1E1F30',
+                      lineHeight: 1.1,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}
+                  >
+                    {userName}
                   </span>
                   <span style={{ fontSize: '0.7rem', color: '#8E92A4', fontWeight: 500 }}>
                     Plan Pro

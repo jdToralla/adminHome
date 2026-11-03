@@ -23,6 +23,13 @@ const dataE = {
   hora: ''
 };
 
+const parseUserId = (id) => {
+  if (id === null || id === undefined) return '';
+  const str = id.toString().trim();
+  const num = parseInt(str, 10);
+  return !isNaN(num) && num.toString() === str ? num : str;
+};
+
 export default function Home() {
   const historial = useHistory();
   const [flag, setFlag] = useState(false);
@@ -62,7 +69,7 @@ export default function Home() {
       const idUser = localStorage.getItem('currentId');
       const { docs } = await firedb
         .collection('caja-chica')
-        .where("idUser", "==", parseInt(idUser))
+        .where("idUser", "==", parseUserId(idUser))
         .orderBy("fecha", "desc")
         .get();
 
@@ -94,7 +101,7 @@ export default function Home() {
       if (type === 'Egreso') {
         const { docs } = await firedb
           .collection('caja-chica')
-          .where("idUser", "==", parseInt(idUser))
+          .where("idUser", "==", parseUserId(idUser))
           .where("tipo", "==", 1)
           .get();
         const newArray = docs.map(item => ({ id: item.id, ...item.data() }));
@@ -103,7 +110,7 @@ export default function Home() {
       } else if (type === 'Ingreso') {
         const { docs } = await firedb
           .collection('caja-chica')
-          .where("idUser", "==", parseInt(idUser))
+          .where("idUser", "==", parseUserId(idUser))
           .where("tipo", "==", 2)
           .get();
         const newArray = docs.map(item => ({ id: item.id, ...item.data() }));
@@ -131,7 +138,7 @@ export default function Home() {
       const idUser = localStorage.getItem('currentId');
       const { docs } = await firedb
         .collection('caja-chica')
-        .where("idUser", "==", parseInt(idUser))
+        .where("idUser", "==", parseUserId(idUser))
         .where("fecha", "==", `${date}`)
         .get();
 
@@ -251,7 +258,7 @@ export default function Home() {
       {/* Greeting Header */}
       <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-2 mb-md-4">
         <div>
-          <div className="dashboard-greeting-subtitle">Hola, es tu resumen</div>
+          <div className="dashboard-greeting-subtitle">Hola {localStorage.getItem('currentUserName') ? localStorage.getItem('currentUserName').split(' ')[0] : ''}, es tu resumen</div>
           <h2 className="dashboard-greeting-title">Dashboard</h2>
         </div>
 
@@ -535,7 +542,7 @@ export default function Home() {
             <div className="card-footer-info">
               <div>
                 <div className="card-info-label">Titular</div>
-                <div className="card-info-val">Usuario AdminHome</div>
+                <div className="card-info-val">{localStorage.getItem('currentUserName') || 'Usuario AdminHome'}</div>
               </div>
               <div className="text-right">
                 <div className="card-info-label">Vence</div>
