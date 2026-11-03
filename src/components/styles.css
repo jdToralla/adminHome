@@ -1436,3 +1436,92 @@
   border-color: var(--primary);
   color: var(--primary);
 }
+
+/* ==========================================================
+   MÓDULO DE EGRESOS (GASTOS) FINANZIA
+   Paleta Coral / Melocotón, Tarjetas de Crédito y Cuotas
+   ========================================================== */
+
+/* Caja de captura de gasto con acento coral */
+.caja-captura-monto.gasto {
+  background: #FFF9F7;
+  border-color: #F8D3C8;
+}
+.caja-captura-monto.gasto:focus-within {
+  border-color: #F46F5F;
+  background: #FFFFFF;
+  box-shadow: 0 4px 18px rgba(244, 111, 95, 0.16);
+}
+
+.prefijo-moneda-monto.gasto {
+  color: #F46F5F;
+}
+
+/* Categorías de gasto activas */
+.tarjeta-categoria-finanzia.gasto.activa {
+  background: #FFFFFF;
+  border-color: #F46F5F;
+  box-shadow: 0 6px 16px rgba(244, 111, 95, 0.22);
+}
+
+/* Botón principal de guardar gasto */
+.boton-guardar-gasto {
+  width: 100%;
+  background: linear-gradient(135deg, #FF8E6E 0%, #F46F5F 100%);
+  color: #FFFFFF;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 15px 20px;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(244, 111, 95, 0.35);
+  transition: all 0.25s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 6px;
+  margin-bottom: 12px;
+}
+.boton-guardar-gasto:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(244, 111, 95, 0.45);
+  color: #FFFFFF;
+}
+
+/* Tarjeta especial para configuración de Tarjetas de Crédito y Cuotas */
+.tarjeta-credito-especial-bloque {
+  background: linear-gradient(135deg, #F8F9FD 0%, #EEF2FF 100%);
+  border: 1.5px solid #C7D2FE;
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-top: 12px;
+  margin-bottom: 14px;
+}
+
+.cabecera-tarjeta-credito-especial {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.titulo-tarjeta-credito-especial {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #3730A3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.badge-finanzas-tc {
+  background: #4E44EB;
+  color: #FFFFFF;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
