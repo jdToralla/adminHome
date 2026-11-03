@@ -594,7 +594,7 @@ export default function AddData() {
       };
 
       if (comercioGasto.trim()) {
-        const claveComercio = comercioGasto.trim().replace(/[\.\#\$\[\]\/]/g, '_');
+        const claveComercio = comercioGasto.trim().replace(/[.#$[\]/]/g, '_');
         datosAgregados[`expenseMerchantBreakdown.${claveComercio}`] = firebase.firestore.FieldValue.increment(montoNumerico);
       }
 
