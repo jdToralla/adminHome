@@ -5,6 +5,7 @@ import Home from './components/Home';
 import Login from './components/Login';
 import Movimientos from './components/Movimientos';
 import NavegacionInferior from './components/NavegacionInferior';
+import Reportes from './components/Reportes';
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
         <Switch>
           <Route path="/add-data/:id"> <AddData/> </Route>
           <Route path="/movimientos"> <Movimientos/> </Route>
+          <Route path="/reportes"> <Reportes/> </Route>
           <Route path="/home"> <Home/> </Route>
           <Route path="/login"><Login/></Route>
           <Route path="/"><Login/></Route>

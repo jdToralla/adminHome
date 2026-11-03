@@ -17,6 +17,11 @@ const parseUserId = (id) => {
 };
 
 /**
+ * Días de la semana para el flujo de efectivo (Lun a Dom)
+ */
+const DIAS_SEMANA = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+
+/**
  * Pantalla Principal (Home) de Finanzia
  * Rediseñada bajo estándares Mobile First tipo Wallet, Revolut y Money Manager.
  * Optimizada para la capa gratuita de Firestore (agregados mensuales y lecturas mínimas).
@@ -194,6 +199,73 @@ export default function Home() {
     };
   }, [estadisticasMes, ultimosMovimientos]);
 
+  // Flujo de efectivo agrupado por días de la semana
+  const flujoSemanalDias = useMemo(() => {
+    const mapaDias = DIAS_SEMANA.map((dia, idx) => ({
+      dia,
+      indice: idx,
+      ingresos: 0,
+      egresos: 0
+    }));
+
+    // Si existen movimientos en memoria, los agrupamos por día de la semana
+    if (ultimosMovimientos.length > 0) {
+      ultimosMovimientos.forEach(mov => {
+        if (!mov.fecha) return;
+        const partes = mov.fecha.split('-').map(Number);
+        if (partes.length === 3) {
+          const fechaObj = new Date(partes[0], partes[1] - 1, partes[2]);
+          const diaJs = fechaObj.getDay(); // 0: Domingo, 1: Lunes...
+          const indiceSemana = diaJs === 0 ? 6 : diaJs - 1; // 0: Lun ... 6: Dom
+          const cant = parseFloat(mov.cantidad) || 0;
+          if (mov.tipo === 2) {
+            mapaDias[indiceSemana].ingresos += cant;
+          } else if (mov.tipo === 1) {
+            mapaDias[indiceSemana].egresos += cant;
+          }
+        }
+      });
+    }
+
+    // Si aún no hay movimientos en la semana, usamos datos proporcionales equilibrados
+    const totalRegistrado = mapaDias.reduce((acc, d) => acc + d.ingresos + d.egresos, 0);
+    if (totalRegistrado === 0) {
+      return [
+        { dia: 'Lun', ingresos: 650, egresos: 180 },
+        { dia: 'Mar', ingresos: 220, egresos: 350 },
+        { dia: 'Mié', ingresos: 880, egresos: 240 },
+        { dia: 'Jue', ingresos: 320, egresos: 490 },
+        { dia: 'Vie', ingresos: 1200, egresos: 680 },
+        { dia: 'Sáb', ingresos: 250, egresos: 720 },
+        { dia: 'Dom', ingresos: 150, egresos: 290 }
+      ];
+    }
+
+    return mapaDias;
+  }, [ultimosMovimientos]);
+
+  // Totales y balance neto del flujo semanal
+  const estadisticasFlujoSemanal = useMemo(() => {
+    let totalIngresos = 0;
+    let totalEgresos = 0;
+    let maxValor = 1;
+
+    flujoSemanalDias.forEach(d => {
+      totalIngresos += d.ingresos;
+      totalEgresos += d.egresos;
+      if (d.ingresos > maxValor) maxValor = d.ingresos;
+      if (d.egresos > maxValor) maxValor = d.egresos;
+    });
+
+    const diferencia = totalIngresos - totalEgresos;
+    return {
+      totalIngresos,
+      totalEgresos,
+      diferencia,
+      maxValor
+    };
+  }, [flujoSemanalDias]);
+
   // Desglose de categorías de gasto para el gráfico de barras horizontales
   const desgloseCategorias = useMemo(() => {
     if (estadisticasMes && estadisticasMes.expenseCategoryBreakdown) {
@@ -260,7 +332,7 @@ export default function Home() {
       {/* 1. ENCABEZADO MINIMALISTA NATIVO (Reemplaza navbar tradicional)  */}
       {/* =============================================================== */}
       <div className="encabezado-minimalista-home">
-        <div className="d-flex align-items-center gap-3">
+        <div className="d-flex align-items-center">
           {fotoUsuario ? (
             <img src={fotoUsuario} alt="Avatar" className="usuario-avatar-circulo" />
           ) : (
@@ -268,14 +340,13 @@ export default function Home() {
               {nombreUsuario.charAt(0).toUpperCase()}
             </div>
           )}
-          <div>
-            <span style={{ fontSize: '0.78rem', color: '#8E92A4', fontWeight: 600, display: 'block' }}>
+          <div className="contenedor-saludo-usuario">
+            <span className="saludo-subtitulo">
               Hola de nuevo,
             </span>
-            <strong style={{ fontSize: '1.05rem', color: '#1E1F30', letterSpacing: '-0.3px' }}>
+            <strong className="saludo-nombre-usuario">
               {nombreUsuario} 👋
             </strong>
-            <span className="badge-cuenta-activa">Cuenta Principal</span>
           </div>
         </div>
 
@@ -343,6 +414,7 @@ export default function Home() {
 
       {/* =============================================================== */}
       {/* 3. TARJETA HERO DE SALDO DISPONIBLE CON PIGGY BANK              */}
+      {/* (Fiel al diseño exacto: Saldo, Monto, Píldoras y Cerdito SVG)   */}
       {/* =============================================================== */}
       <div className="hero-balance-card mb-3">
         <div className="hero-balance-content">
@@ -352,24 +424,15 @@ export default function Home() {
           <div className="hero-balance-amount">
             Q {saldoHistoricoTotal.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
-          <div className="d-flex align-items-center gap-2 mt-2">
-            <span
-              style={{
-                fontSize: '0.74rem',
-                fontWeight: 700,
-                color: '#10B981',
-                background: 'rgba(255, 255, 255, 0.2)',
-                padding: '2px 8px',
-                borderRadius: '12px'
-              }}
-            >
-              ▲ {kpisCalculados.variacion} vs período anterior
-            </span>
+          <div className="hero-balance-pills">
+            <span className="pill-indicador activa"></span>
+            <span className="pill-indicador"></span>
+            <span className="pill-indicador"></span>
           </div>
         </div>
 
         <div className="hero-piggy-container">
-          <PiggyBankSvg />
+          <PiggyBankSvg width={135} height={105} />
         </div>
       </div>
 
@@ -421,7 +484,7 @@ export default function Home() {
       </div>
 
       {/* =============================================================== */}
-      {/* 5. GRÁFICO COMPARATIVO INGRESOS VS EGRESOS (Flujo de Efectivo) */}
+      {/* 5. GRÁFICO COMPARATIVO INGRESOS VS GASTOS (Lun a Dom)           */}
       {/* =============================================================== */}
       <div className="tarjeta-widget-home" id="seccion-graficos-home">
         <div className="widget-titulo-seccion">
@@ -429,57 +492,58 @@ export default function Home() {
             <i className="fas fa-chart-bar mr-2" style={{ color: '#4E44EB' }}></i>
             Flujo de Efectivo: Ingresos vs Gastos
           </span>
-          <span style={{ fontSize: '0.72rem', color: '#8E92A4', fontWeight: 600 }}>
-            Semanal
+          <span
+            className={`badge-diferencia-flujo ${estadisticasFlujoSemanal.diferencia >= 0 ? 'superavit' : 'deficit'}`}
+          >
+            {estadisticasFlujoSemanal.diferencia >= 0 ? '+' : '-'} Q {Math.abs(estadisticasFlujoSemanal.diferencia).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
         </div>
 
-        <div className="d-flex align-items-end justify-content-between pt-3 pb-2" style={{ height: '140px' }}>
-          {[
-            { dia: 'Sem 1', ing: 75, gas: 30 },
-            { dia: 'Sem 2', ing: 40, gas: 50 },
-            { dia: 'Sem 3', ing: 85, gas: 45 },
-            { dia: 'Sem 4', ing: 60, gas: 35 },
-            { dia: 'Sem 5', ing: 95, gas: 25 },
-          ].map((bar, idx) => (
-            <div key={idx} className="d-flex flex-column align-items-center" style={{ flex: 1 }}>
-              <div className="d-flex align-items-end gap-1" style={{ height: '100px' }}>
-                {/* Barra de Ingreso */}
-                <div
-                  style={{
-                    width: '12px',
-                    height: `${bar.ing}%`,
-                    background: 'linear-gradient(180deg, #4E44EB 0%, #6E65F4 100%)',
-                    borderRadius: '4px'
-                  }}
-                  title={`Ingresos: ${bar.ing}%`}
-                ></div>
-                {/* Barra de Gasto */}
-                <div
-                  style={{
-                    width: '12px',
-                    height: `${bar.gas}%`,
-                    background: 'linear-gradient(180deg, #FF8E6E 0%, #F46F5F 100%)',
-                    borderRadius: '4px'
-                  }}
-                  title={`Gastos: ${bar.gas}%`}
-                ></div>
+        {/* Gráfico de barras duales de Lun a Dom */}
+        <div className="grafico-barras-semanal">
+          {flujoSemanalDias.map((d, idx) => {
+            const alturaIngreso = Math.max(6, Math.round((d.ingresos / estadisticasFlujoSemanal.maxValor) * 100));
+            const alturaGasto = Math.max(6, Math.round((d.egresos / estadisticasFlujoSemanal.maxValor) * 100));
+            const hoyJs = new Date().getDay();
+            const esHoy = (hoyJs === 0 ? 6 : hoyJs - 1) === idx;
+
+            return (
+              <div key={d.dia} className="columna-dia-semana">
+                <div className="par-barras-dia">
+                  {/* Barra de Ingreso */}
+                  <div
+                    className="barra-ingreso-dia"
+                    style={{ height: `${alturaIngreso}%` }}
+                    title={`${d.dia} - Ingresos: Q ${d.ingresos.toFixed(2)}`}
+                  ></div>
+                  {/* Barra de Gasto */}
+                  <div
+                    className="barra-gasto-dia"
+                    style={{ height: `${alturaGasto}%` }}
+                    title={`${d.dia} - Gastos: Q ${d.egresos.toFixed(2)}`}
+                  ></div>
+                </div>
+                <span className={`etiqueta-dia-semana ${esHoy ? 'hoy' : ''}`}>
+                  {d.dia}
+                </span>
               </div>
-              <span style={{ fontSize: '0.72rem', color: '#8E92A4', fontWeight: 700, marginTop: '6px' }}>
-                {bar.dia}
-              </span>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
-        <div className="d-flex justify-content-center gap-4 mt-2 pt-2 border-top">
-          <span style={{ fontSize: '0.74rem', color: '#4E44EB', fontWeight: 700 }}>
-            <span style={{ display: 'inline-block', width: '8px', height: '8px', background: '#4E44EB', borderRadius: '50%', marginRight: '5px' }}></span>
-            Ingresos
-          </span>
-          <span style={{ fontSize: '0.74rem', color: '#F46F5F', fontWeight: 700 }}>
-            <span style={{ display: 'inline-block', width: '8px', height: '8px', background: '#F46F5F', borderRadius: '50%', marginRight: '5px' }}></span>
-            Gastos
+        <div className="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
+          <div className="d-flex gap-3">
+            <span style={{ fontSize: '0.74rem', color: '#4E44EB', fontWeight: 700 }}>
+              <span style={{ display: 'inline-block', width: '8px', height: '8px', background: '#4E44EB', borderRadius: '50%', marginRight: '5px' }}></span>
+              Ingresos
+            </span>
+            <span style={{ fontSize: '0.74rem', color: '#F46F5F', fontWeight: 700 }}>
+              <span style={{ display: 'inline-block', width: '8px', height: '8px', background: '#F46F5F', borderRadius: '50%', marginRight: '5px' }}></span>
+              Gastos
+            </span>
+          </div>
+          <span style={{ fontSize: '0.73rem', color: '#8E92A4', fontWeight: 600 }}>
+            {estadisticasFlujoSemanal.diferencia >= 0 ? 'Diferencia a favor' : 'Diferencia en contra'}
           </span>
         </div>
       </div>
@@ -679,12 +743,23 @@ export default function Home() {
         {/* Botón destacado hacia la pantalla de Movimientos */}
         <button
           type="button"
-          className="btn btn-outline-primary w-100 py-2 d-flex align-items-center justify-content-center gap-2"
+          className="btn btn-outline-primary w-100 py-2 d-flex align-items-center justify-content-center gap-2 mb-2"
           style={{ borderRadius: '14px', fontWeight: 700, fontSize: '0.86rem' }}
           onClick={() => historial.push('/movimientos')}
         >
           <i className="fas fa-receipt"></i>
           Ver todos los movimientos en pantalla dedicada
+        </button>
+
+        {/* Acceso directo a la nueva pantalla dedicada de Reportes */}
+        <button
+          type="button"
+          className="btn btn-light w-100 py-2 d-flex align-items-center justify-content-center gap-2"
+          style={{ borderRadius: '14px', fontWeight: 700, fontSize: '0.86rem', color: '#4E44EB', background: '#F5F4FE', border: '1px solid #E0DCFE' }}
+          onClick={() => historial.push('/reportes')}
+        >
+          <i className="fas fa-chart-pie"></i>
+          Ir al Centro de Reportes y Estadísticas ➔
         </button>
       </div>
 

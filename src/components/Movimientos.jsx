@@ -17,6 +17,43 @@ const parseUserId = (id) => {
 };
 
 /**
+ * Catálogo oficial de categorías de ingresos y egresos de Finanzia
+ */
+const CATEGORIAS_INGRESOS_OFICIALES = [
+  'Sueldo',
+  'Bonificaciones',
+  'Comisiones',
+  'Freelance',
+  'Negocio propio',
+  'Alquileres',
+  'Inversiones',
+  'Intereses',
+  'Reembolsos',
+  'Préstamos recibidos',
+  'Tarjeta de crédito',
+  'Regalos',
+  'Otros'
+];
+
+const CATEGORIAS_EGRESOS_OFICIALES = [
+  'Alimentación',
+  'Transporte',
+  'Vivienda',
+  'Servicios',
+  'Salud',
+  'Educación',
+  'Compras',
+  'Entretenimiento',
+  'Finanzas',
+  'Mascotas',
+  'Regalos',
+  'Familia',
+  'Suscripciones',
+  'Inversiones',
+  'Otros'
+];
+
+/**
  * Pantalla Independiente: Movimientos Financieros
  * Incluye búsqueda por texto, filtros por fecha, rango, mes, año, categoría,
  * cuenta y tipo (Ingreso/Egreso).
@@ -121,6 +158,12 @@ export default function Movimientos() {
     });
     return Array.from(cats);
   }, [listaMovimientos]);
+
+  // Identificar si existen categorías registradas en los datos fuera de los catálogos oficiales
+  const otrasCategoriasDisponibles = useMemo(() => {
+    const oficiales = new Set([...CATEGORIAS_INGRESOS_OFICIALES, ...CATEGORIAS_EGRESOS_OFICIALES]);
+    return categoriasDisponibles.filter(cat => !oficiales.has(cat));
+  }, [categoriasDisponibles]);
 
   // Obtener cuentas únicas presentes en la lista para el dropdown
   const cuentasDisponibles = useMemo(() => {
@@ -374,7 +417,7 @@ export default function Movimientos() {
             />
           </div>
 
-          {/* Filtro por Categoría */}
+          {/* Filtro por Categoría organizado por Ingresos y Egresos */}
           <div className="col-6 col-md-3">
             <label className="etiqueta-filtro-mini">Categoría</label>
             <select
@@ -383,9 +426,23 @@ export default function Movimientos() {
               onChange={(e) => setFiltroCategoria(e.target.value)}
             >
               <option value="Todas">Todas las categorías</option>
-              {categoriasDisponibles.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
+              <optgroup label="── Categorías de Ingresos ──">
+                {CATEGORIAS_INGRESOS_OFICIALES.map((cat) => (
+                  <option key={`ing-${cat}`} value={cat}>{cat}</option>
+                ))}
+              </optgroup>
+              <optgroup label="── Categorías de Egresos ──">
+                {CATEGORIAS_EGRESOS_OFICIALES.map((cat) => (
+                  <option key={`egr-${cat}`} value={cat}>{cat}</option>
+                ))}
+              </optgroup>
+              {otrasCategoriasDisponibles.length > 0 && (
+                <optgroup label="── Otras Registradas ──">
+                  {otrasCategoriasDisponibles.map((cat) => (
+                    <option key={`otra-${cat}`} value={cat}>{cat}</option>
+                  ))}
+                </optgroup>
+              )}
             </select>
           </div>
 
@@ -655,3 +712,4 @@ export default function Movimientos() {
     </div>
   );
 }
+

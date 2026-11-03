@@ -102,23 +102,7 @@ export default function NavegacionInferior() {
           <button
             type="button"
             className={`boton-item-nav-inferior ${rutaActual === '/reportes' ? 'activo' : ''}`}
-            onClick={() => {
-              if (rutaActual === '/home') {
-                // Hacer scroll suave hacia los gráficos en el Home
-                const elementoGraficos = document.getElementById('seccion-graficos-home');
-                if (elementoGraficos) {
-                  elementoGraficos.scrollIntoView({ behavior: 'smooth' });
-                }
-              } else {
-                historial.push('/home');
-                setTimeout(() => {
-                  const elementoGraficos = document.getElementById('seccion-graficos-home');
-                  if (elementoGraficos) {
-                    elementoGraficos.scrollIntoView({ behavior: 'smooth' });
-                  }
-                }, 300);
-              }
-            }}
+            onClick={() => historial.push('/reportes')}
           >
             <i className="fas fa-chart-pie icono-nav-inferior"></i>
             <span className="etiqueta-nav-inferior">Reportes</span>
@@ -148,61 +132,44 @@ export default function NavegacionInferior() {
       >
         <div className="p-4 bg-white rounded-top-custom">
           <div className="d-flex justify-content-between align-items-center mb-3">
-            <h5 className="mb-0 font-weight-bold" style={{ fontSize: '1.1rem', color: '#1E1F30' }}>
-              ¿Qué deseas registrar?
+            <h5 className="mb-0 font-weight-bold" style={{ fontSize: '1.15rem', color: '#1E1F30' }}>
+              Nuevo Movimiento
             </h5>
             <button
               type="button"
-              className="btn btn-sm btn-light rounded-circle"
+              className="btn btn-sm btn-light rounded-circle d-flex align-items-center justify-content-center"
+              style={{ width: '32px', height: '32px' }}
               onClick={() => setMostrarModalNuevo(false)}
             >
-              <i className="fas fa-times"></i>
+              <i className="fas fa-times text-muted"></i>
             </button>
           </div>
 
-          <p style={{ fontSize: '0.82rem', color: '#8E92A4', marginBottom: '20px' }}>
-            Selecciona el tipo de transacción para registrarla en menos de 5 segundos.
-          </p>
-
-          <div className="d-flex flex-column gap-3">
-            {/* Tarjeta Nuevo Ingreso */}
+          <div className="d-flex flex-column gap-3 py-2">
+            {/* Botón Vibrante: Nuevo Ingreso */}
             <button
               type="button"
-              className="tarjeta-opcion-movimiento ingreso"
+              className="boton-accion-modal-vibrante ingreso"
               onClick={() => irANuevoMovimiento(2)}
             >
-              <div className="icono-opcion-movimiento ingreso">
+              <div className="icono-circulo-vibrante">
                 <i className="fas fa-arrow-down"></i>
               </div>
-              <div className="text-left flex-grow-1">
-                <strong style={{ fontSize: '0.98rem', color: '#1E1F30', display: 'block' }}>
-                  Nuevo Ingreso
-                </strong>
-                <span style={{ fontSize: '0.78rem', color: '#6B7280' }}>
-                  Sueldo, bonificaciones, freelance, reembolsos, inversiones
-                </span>
-              </div>
-              <i className="fas fa-chevron-right text-muted"></i>
+              <span className="texto-accion-vibrante">Nuevo Ingreso</span>
+              <i className="fas fa-chevron-right flecha-vibrante"></i>
             </button>
 
-            {/* Tarjeta Nuevo Gasto */}
+            {/* Botón Vibrante: Nuevo Gasto */}
             <button
               type="button"
-              className="tarjeta-opcion-movimiento gasto"
+              className="boton-accion-modal-vibrante gasto"
               onClick={() => irANuevoMovimiento(1)}
             >
-              <div className="icono-opcion-movimiento gasto">
+              <div className="icono-circulo-vibrante">
                 <i className="fas fa-arrow-up"></i>
               </div>
-              <div className="text-left flex-grow-1">
-                <strong style={{ fontSize: '0.98rem', color: '#1E1F30', display: 'block' }}>
-                  Nuevo Gasto (Egreso)
-                </strong>
-                <span style={{ fontSize: '0.78rem', color: '#6B7280' }}>
-                  Alimentos, transporte, vivienda, servicios, tarjetas en cuotas
-                </span>
-              </div>
-              <i className="fas fa-chevron-right text-muted"></i>
+              <span className="texto-accion-vibrante">Nuevo Gasto</span>
+              <i className="fas fa-chevron-right flecha-vibrante"></i>
             </button>
           </div>
         </div>
@@ -304,3 +271,4 @@ export default function NavegacionInferior() {
     </>
   );
 }
+
