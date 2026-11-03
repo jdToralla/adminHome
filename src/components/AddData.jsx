@@ -81,6 +81,7 @@ export default function AddData() {
   // 1. ESTADOS DEL MODO RÁPIDO (Por defecto)
   // ---------------------------------------------------------------------------
   const [monto, setMonto] = useState('');
+  const [descripcion, setDescripcion] = useState('');
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState(CATEGORIAS_INGRESOS[0].nombre);
 
   // Función para obtener la fecha de hoy en formato YYYY-MM-DD
@@ -98,6 +99,18 @@ export default function AddData() {
     const horas = String(fechaActual.getHours()).padStart(2, '0');
     const minutos = String(fechaActual.getMinutes()).padStart(2, '0');
     return `${horas}:${minutos}`;
+  };
+
+  // Función para obtener mes y año actual en español (ej. "Noviembre 2026")
+  const obtenerMesAnioActual = () => {
+    const nombresMeses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    const fechaActual = new Date();
+    return `${nombresMeses[fechaActual.getMonth()]} ${fechaActual.getFullYear()}`;
+  };
+
+  // Función para aplicar una sugerencia rápida de descripción
+  const aplicarSugerenciaDescripcion = (texto) => {
+    setDescripcion(texto);
   };
 
   const [fecha, setFecha] = useState(obtenerFechaHoy());
@@ -118,7 +131,6 @@ export default function AddData() {
   const [estadoTransaccion, setEstadoTransaccion] = useState('Confirmado');
   const [esRecurrente, setEsRecurrente] = useState(false);
   const [frecuenciaRecurrencia, setFrecuenciaRecurrencia] = useState('Quincenal');
-  const [descripcion, setDescripcion] = useState('');
   const [archivoComprobante, setArchivoComprobante] = useState(null);
   const [impactoPatrimonial, setImpactoPatrimonial] = useState(true);
   const [guardando, setGuardando] = useState(false);
@@ -142,7 +154,8 @@ export default function AddData() {
   // Función para seleccionar categoría
   const seleccionarCategoria = (nombreCategoria) => {
     setCategoriaSeleccionada(nombreCategoria);
-    if (!descripcion || CATEGORIAS_INGRESOS.some(c => c.nombre === descripcion)) {
+    // Solo sugerir la categoría en la descripción si está vacía o si contenía solo el nombre de una categoría anterior
+    if (!descripcion.trim() || CATEGORIAS_INGRESOS.some(c => c.nombre.toLowerCase() === descripcion.trim().toLowerCase())) {
       setDescripcion(nombreCategoria);
     }
   };
@@ -427,7 +440,72 @@ export default function AddData() {
               </div>
             </div>
 
-            {/* 2. SELECCIÓN DE CATEGORÍA CON ICONOS */}
+            {/* 2. CAMPO DESCRIPCIÓN O CONCEPTO (Visible en modo rápido) */}
+            <div className="mb-3">
+              <div className="d-flex justify-content-between align-items-center mb-1">
+                <label className="etiqueta-campo-finanzia mb-0">
+                  <i className="fas fa-file-signature mr-1" style={{ color: '#4E44EB' }}></i> Descripción o Concepto
+                </label>
+                {descripcion && (
+                  <button
+                    type="button"
+                    className="btn btn-link p-0 text-muted"
+                    style={{ fontSize: '0.74rem', textDecoration: 'none' }}
+                    onClick={() => setDescripcion('')}
+                  >
+                    <i className="fas fa-times-circle mr-1"></i> Limpiar
+                  </button>
+                )}
+              </div>
+
+              <div className="contenedor-entrada-icono">
+                <i className="fas fa-pen icono-entrada-flotante"></i>
+                <input
+                  type="text"
+                  className="campo-formulario-finanzia campo-formulario-con-icono"
+                  placeholder="Ej. Pago de noviembre 2026, Alquiler mes octubre Josue..."
+                  value={descripcion}
+                  onChange={(e) => setDescripcion(e.target.value)}
+                />
+              </div>
+
+              {/* Píldoras con sugerencias inteligentes para captura ultra-rápida */}
+              <div className="pildoras-sumas-rapidas pildoras-descripcion-sugerencias justify-content-start mt-2">
+                <span style={{ fontSize: '0.72rem', color: '#8E92A4', alignSelf: 'center', fontWeight: 600 }}>
+                  Sugerencias:
+                </span>
+                <button
+                  type="button"
+                  className="boton-suma-rapida boton-sugerencia-concepto"
+                  onClick={() => aplicarSugerenciaDescripcion(`Pago ${obtenerMesAnioActual()}`)}
+                >
+                  + Pago {obtenerMesAnioActual()}
+                </button>
+                <button
+                  type="button"
+                  className="boton-suma-rapida boton-sugerencia-concepto"
+                  onClick={() => aplicarSugerenciaDescripcion(`Alquiler ${obtenerMesAnioActual()}`)}
+                >
+                  + Alquiler {obtenerMesAnioActual()}
+                </button>
+                <button
+                  type="button"
+                  className="boton-suma-rapida boton-sugerencia-concepto"
+                  onClick={() => aplicarSugerenciaDescripcion('Quincena 1')}
+                >
+                  + Quincena 1
+                </button>
+                <button
+                  type="button"
+                  className="boton-suma-rapida boton-sugerencia-concepto"
+                  onClick={() => aplicarSugerenciaDescripcion('Quincena 2')}
+                >
+                  + Quincena 2
+                </button>
+              </div>
+            </div>
+
+            {/* 3. SELECCIÓN DE CATEGORÍA CON ICONOS */}
             <div className="mb-3">
               <div className="seccion-categorias-titulo">
                 <span>Categoría</span>

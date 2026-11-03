@@ -1388,3 +1388,44 @@
   background: #FFF1F2;
   border: 1.5px solid #FECDD3;
 }
+
+/* Contenedor y campo con icono integrado para descripción */
+.contenedor-entrada-icono {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.icono-entrada-flotante {
+  position: absolute;
+  left: 14px;
+  color: #8E92A4;
+  font-size: 0.9rem;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.campo-formulario-con-icono {
+  padding-left: 38px !important;
+}
+
+.pildoras-sumas-rapidas.pildoras-descripcion-sugerencias {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.boton-suma-rapida.boton-sugerencia-concepto {
+  font-size: 0.74rem;
+  padding: 3px 10px;
+  background: #F4F2F0;
+  border: 1px solid #E3DDD7;
+  color: #4B5563;
+}
+.boton-suma-rapida.boton-sugerencia-concepto:hover {
+  background: var(--primary-subtle);
+  border-color: var(--primary);
+  color: var(--primary);
+}
