@@ -1525,3 +1525,598 @@
   padding: 2px 8px;
   border-radius: var(--radius-full);
 }
+
+/* ==========================================================
+   BARRA DE NAVEGACIÓN INFERIOR FIJA (BOTTOM NAV BAR)
+   Mobile First tipo Revolut, Wallet & Money Manager
+   ========================================================== */
+
+.barra-navegacion-inferior {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(229, 225, 220, 0.7);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05);
+  z-index: 1040;
+  padding-bottom: env(safe-area-inset-bottom, 8px);
+}
+
+.contenedor-items-barra-inferior {
+  max-width: 540px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  height: 62px;
+  padding: 0 8px;
+  position: relative;
+}
+
+.boton-item-nav-inferior {
+  background: transparent;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  color: #8E92A4;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+  min-width: 58px;
+}
+.boton-item-nav-inferior:hover {
+  color: #1E1F30;
+}
+.boton-item-nav-inferior.activo {
+  color: var(--primary);
+}
+.boton-item-nav-inferior.activo .icono-nav-inferior {
+  transform: translateY(-2px);
+  color: var(--primary);
+}
+
+.icono-nav-inferior {
+  font-size: 1.15rem;
+  transition: transform 0.2s ease;
+}
+
+.etiqueta-nav-inferior {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: -0.1px;
+}
+
+/* Botón Central Flotante para Nuevo Movimiento */
+.contenedor-boton-central-flotante {
+  position: relative;
+  top: -16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.boton-central-flotante {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4E44EB 0%, #FF8E6E 100%);
+  border: 4px solid #FFFFFF;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(78, 68, 235, 0.4);
+  transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.boton-central-flotante:hover {
+  transform: scale(1.1) translateY(-2px);
+  box-shadow: 0 12px 28px rgba(78, 68, 235, 0.5);
+  color: #FFFFFF;
+}
+.boton-central-flotante:active {
+  transform: scale(0.95);
+}
+
+/* Tarjetas de opciones para nuevo movimiento */
+.tarjeta-opcion-movimiento {
+  background: #FAF9F7;
+  border: 1.5px solid #F0ECE8;
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+.tarjeta-opcion-movimiento:hover {
+  background: #FFFFFF;
+  border-color: #E2DDD6;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+}
+.tarjeta-opcion-movimiento.ingreso:hover {
+  border-color: #4E44EB;
+}
+.tarjeta-opcion-movimiento.gasto:hover {
+  border-color: #F46F5F;
+}
+
+.icono-opcion-movimiento {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+}
+.icono-opcion-movimiento.ingreso {
+  background: #EEF2FF;
+  color: #4E44EB;
+}
+.icono-opcion-movimiento.gasto {
+  background: #FFF1F2;
+  color: #F46F5F;
+}
+
+.rounded-top-custom {
+  border-radius: 24px;
+}
+
+/* ==========================================================
+   ESTILOS PARA PANTALLA MOVIMIENTOS Y HOME REDISEÑADO
+   ========================================================== */
+
+/* Buscador de movimientos */
+.contenedor-buscador-movimientos {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.icono-buscador {
+  position: absolute;
+  left: 14px;
+  color: #8E92A4;
+  font-size: 0.92rem;
+  pointer-events: none;
+}
+
+.input-buscador-movimientos {
+  width: 100%;
+  background: #FFFFFF;
+  border: 1.5px solid #EDE8E3;
+  border-radius: var(--radius-md);
+  padding: 10px 38px 10px 40px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text-main);
+  outline: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  transition: all 0.2s ease;
+}
+.input-buscador-movimientos:focus {
+  border-color: var(--primary);
+  box-shadow: 0 4px 14px rgba(78, 68, 235, 0.12);
+}
+
+.btn-limpiar-busqueda {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: #8E92A4;
+  cursor: pointer;
+  padding: 4px;
+  font-size: 0.9rem;
+}
+.btn-limpiar-busqueda:hover {
+  color: var(--text-main);
+}
+
+/* Píldoras de filtro rápido */
+.pildora-filtro-tipo {
+  background: #FFFFFF;
+  border: 1px solid #EDE8E3;
+  border-radius: var(--radius-full);
+  padding: 6px 14px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #6B7280;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+.pildora-filtro-tipo:hover {
+  background: #F4F2F0;
+  color: #1E1F30;
+}
+.pildora-filtro-tipo.activa {
+  background: #1E1F30;
+  color: #FFFFFF;
+  border-color: #1E1F30;
+}
+.pildora-filtro-tipo.ingreso.activa {
+  background: #10B981;
+  border-color: #10B981;
+  color: #FFFFFF;
+}
+.pildora-filtro-tipo.gasto.activa {
+  background: #F46F5F;
+  border-color: #F46F5F;
+  color: #FFFFFF;
+}
+
+/* Tarjeta de filtros avanzados en Movimientos */
+.tarjeta-filtros-avanzados {
+  background: #FFFFFF;
+  border: 1px solid #EDE8E3;
+  border-radius: 16px;
+  padding: 14px 16px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+}
+
+.etiqueta-filtro-mini {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #6B7280;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.campo-filtro-mini {
+  width: 100%;
+  background: #FAF9F7;
+  border: 1px solid #E5E1DC;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #1E1F30;
+  outline: none;
+}
+.campo-filtro-mini:focus {
+  border-color: var(--primary);
+  background: #FFFFFF;
+}
+
+/* Tarjeta resumen de la lista filtrada */
+.tarjeta-resumen-filtrado {
+  background: linear-gradient(135deg, #FAF9F7 0%, #FFFFFF 100%);
+  border: 1px solid #EDE8E3;
+  border-radius: 16px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+.col-item-resumen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.etiqueta-resumen {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #8E92A4;
+  letter-spacing: 0.4px;
+}
+
+.monto-resumen {
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+.monto-resumen.ingreso {
+  color: #10B981;
+}
+.monto-resumen.gasto {
+  color: #F46F5F;
+}
+
+.separador-resumen {
+  width: 1px;
+  height: 28px;
+  background: #E5E1DC;
+}
+
+/* Filas de transacción moderna */
+.fila-transaccion-moderna {
+  background: #FFFFFF;
+  border: 1px solid #F0ECE8;
+  border-radius: 16px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+.fila-transaccion-moderna:hover {
+  border-color: #E2DDD6;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+.transaccion-info-col {
+  flex: 1;
+  min-width: 0;
+}
+
+.transaccion-titulo {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #1E1F30;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.transaccion-categoria-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #4B5563;
+  background: #F3F1ED;
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+
+.transaccion-fecha-texto {
+  font-size: 0.72rem;
+  color: #8E92A4;
+  white-space: nowrap;
+}
+
+.transaccion-monto-col {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.transaccion-monto {
+  font-size: 0.95rem;
+  font-weight: 800;
+  display: block;
+}
+.transaccion-monto.ingreso {
+  color: #10B981;
+}
+.transaccion-monto.gasto {
+  color: #F46F5F;
+}
+
+.transaccion-cuenta-tag {
+  font-size: 0.68rem;
+  color: #8E92A4;
+  font-weight: 600;
+}
+
+/* ==========================================================
+   ESTILOS PARA EL HOME REDISEÑADO
+   ========================================================== */
+
+/* Encabezado minimalista nativo de Home */
+.encabezado-minimalista-home {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding: 4px 0;
+}
+
+.usuario-avatar-circulo {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.usuario-avatar-placeholder {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4E44EB, #FF8E6E);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.1rem;
+  box-shadow: 0 4px 12px rgba(78, 68, 235, 0.25);
+}
+
+.badge-cuenta-activa {
+  background: #EEF2FF;
+  color: #4E44EB;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  display: inline-block;
+  margin-top: 2px;
+}
+
+/* Selector horizontal de períodos */
+.selector-periodos-deslizable {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  margin-bottom: 16px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.selector-periodos-deslizable::-webkit-scrollbar {
+  display: none;
+}
+
+.pildora-periodo-item {
+  background: #FFFFFF;
+  border: 1px solid #EDE8E3;
+  border-radius: var(--radius-full);
+  padding: 6px 14px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #6B7280;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+}
+.pildora-periodo-item:hover {
+  background: #F7F5F2;
+  color: #1E1F30;
+}
+.pildora-periodo-item.activo {
+  background: #1E1F30;
+  color: #FFFFFF;
+  border-color: #1E1F30;
+  box-shadow: 0 4px 12px rgba(30, 31, 48, 0.2);
+}
+
+/* Grid de 3 KPIs Financieros */
+.kpis-financieros-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 480px) {
+  .kpis-financieros-grid {
+    gap: 8px;
+  }
+}
+
+.tarjeta-kpi-finanzia {
+  background: #FFFFFF;
+  border: 1px solid #EDE8E3;
+  border-radius: 16px;
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+.kpi-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #8E92A4;
+  text-transform: uppercase;
+}
+
+.kpi-monto-valor {
+  font-size: clamp(0.85rem, 3.2vw, 1.05rem);
+  font-weight: 800;
+  color: #1E1F30;
+  margin-top: 4px;
+  margin-bottom: 2px;
+}
+
+.kpi-badge-tasa {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #10B981;
+}
+
+/* Tarjeta Widget Contenedor de Gráficos y Metas */
+.tarjeta-widget-home {
+  background: #FFFFFF;
+  border: 1px solid #EDE8E3;
+  border-radius: var(--radius-lg);
+  padding: 18px 16px;
+  margin-bottom: 18px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+}
+
+.widget-titulo-seccion {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #1E1F30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+/* Barras de distribución por categoría */
+.fila-categoria-progreso {
+  margin-bottom: 12px;
+}
+.fila-categoria-progreso:last-child {
+  margin-bottom: 0;
+}
+
+.categoria-info-linea {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #1E1F30;
+  margin-bottom: 4px;
+}
+
+.barra-progreso-fondo {
+  width: 100%;
+  height: 8px;
+  background: #F3F1ED;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.barra-progreso-relleno {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+
+/* Tarjetas de Metas y Próximos Pagos */
+.tarjeta-meta-ahorro-item {
+  background: #FAF9F7;
+  border: 1px solid #EDE8E3;
+  border-radius: 14px;
+  padding: 12px;
+  margin-bottom: 8px;
+}
+.tarjeta-meta-ahorro-item:last-child {
+  margin-bottom: 0;
+}
+
+.tarjeta-proximo-pago-item {
+  background: #FAF9F7;
+  border: 1px solid #EDE8E3;
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.tarjeta-proximo-pago-item:last-child {
+  margin-bottom: 0;
+}
+
