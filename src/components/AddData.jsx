@@ -269,37 +269,12 @@ export default function AddData() {
   const [cuotasGasto, setCuotasGasto] = useState(1);
   const [diaCorteGasto, setDiaCorteGasto] = useState('15');
   const [diaPagoGasto, setDiaPagoGasto] = useState('05');
-  const [ubicacionGasto, setUbicacionGasto] = useState('');
   const [archivoComprobanteGasto, setArchivoComprobanteGasto] = useState(null);
-  const [cargandoUbicacion, setCargandoUbicacion] = useState(false);
 
   // Manejador para el archivo de comprobante de gasto
   const manejarCambioArchivoGasto = (e) => {
     if (e.target.files && e.target.files[0]) {
       setArchivoComprobanteGasto(e.target.files[0]);
-    }
-  };
-
-  // Función para obtener GPS del dispositivo
-  const obtenerUbicacionActual = () => {
-    if ('geolocation' in navigator) {
-      setCargandoUbicacion(true);
-      navigator.geolocation.getCurrentPosition(
-        (posicion) => {
-          const lat = posicion.coords.latitude.toFixed(4);
-          const lng = posicion.coords.longitude.toFixed(4);
-          setUbicacionGasto(`GPS: ${lat}, ${lng}`);
-          setCargandoUbicacion(false);
-        },
-        (error) => {
-          console.warn('Geolocalización no disponible:', error);
-          setCargandoUbicacion(false);
-          _swal('Ubicación no disponible', 'No se pudo obtener la posición GPS actual.', 'info');
-        },
-        { timeout: 7000 }
-      );
-    } else {
-      _swal('No compatible', 'Tu navegador no soporta geolocalización.', 'info');
     }
   };
 
@@ -558,7 +533,7 @@ export default function AddData() {
         description: descripcion.trim() || categoriaGasto,
         tags: [],
         attachmentUrl: urlFinalComprobante,
-        location: ubicacionGasto.trim() || null,
+        location: null,
         isRecurring: esRecurrenteGasto,
         recurrenceFrequency: esRecurrenteGasto ? frecuenciaGasto : null,
         dueDate: vencimientoGasto || null,
@@ -1436,10 +1411,10 @@ export default function AddData() {
                   )}
                 </div>
 
-                {/* BLOQUE E: AUDITORÍA, COMPROBANTE Y UBICACIÓN */}
+                {/* BLOQUE E: AUDITORÍA Y COMPROBANTE */}
                 <div className="seccion-avanzada-bloque">
                   <div className="titulo-seccion-avanzada">
-                    <i className="fas fa-file-invoice mr-1" style={{ color: '#F46F5F' }}></i> Auditoría y Ubicación
+                    <i className="fas fa-file-invoice mr-1" style={{ color: '#F46F5F' }}></i> Auditoría y Comprobante
                   </div>
 
                   <div className="mb-2">
@@ -1453,45 +1428,20 @@ export default function AddData() {
                     ></textarea>
                   </div>
 
-                  <div className="row g-2">
-                    <div className="col-12 col-sm-6 mb-2 mb-sm-0">
-                      <label className="etiqueta-campo-finanzia">Adjuntar comprobante / ticket</label>
-                      <input
-                        type="file"
-                        accept="image/*,.pdf"
-                        className="campo-formulario-finanzia"
-                        onChange={manejarCambioArchivoGasto}
-                        style={{ padding: '6px 10px' }}
-                      />
-                      {archivoComprobanteGasto && (
-                        <span style={{ fontSize: '0.74rem', color: '#10B981', fontWeight: 600 }}>
-                          <i className="fas fa-check mr-1"></i> Archivo: {archivoComprobanteGasto.name}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="col-12 col-sm-6">
-                      <div className="d-flex justify-content-between align-items-center mb-1">
-                        <label className="etiqueta-campo-finanzia mb-0">Ubicación (opcional)</label>
-                        <button
-                          type="button"
-                          className="btn btn-link p-0"
-                          style={{ fontSize: '0.72rem', color: '#F46F5F', textDecoration: 'none', fontWeight: 700 }}
-                          onClick={obtenerUbicacionActual}
-                          disabled={cargandoUbicacion}
-                        >
-                          <i className={`fas ${cargandoUbicacion ? 'fa-spinner fa-spin' : 'fa-location-arrow'} mr-1`}></i>
-                          {cargandoUbicacion ? 'Obteniendo...' : 'GPS actual'}
-                        </button>
-                      </div>
-                      <input
-                        type="text"
-                        placeholder="Ciudad o dirección de la compra"
-                        className="campo-formulario-finanzia"
-                        value={ubicacionGasto}
-                        onChange={(e) => setUbicacionGasto(e.target.value)}
-                      />
-                    </div>
+                  <div>
+                    <label className="etiqueta-campo-finanzia">Adjuntar comprobante o ticket</label>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      className="campo-formulario-finanzia"
+                      onChange={manejarCambioArchivoGasto}
+                      style={{ padding: '6px 10px' }}
+                    />
+                    {archivoComprobanteGasto && (
+                      <span style={{ fontSize: '0.74rem', color: '#10B981', fontWeight: 600 }}>
+                        <i className="fas fa-check mr-1"></i> Archivo: {archivoComprobanteGasto.name}
+                      </span>
+                    )}
                   </div>
                 </div>
 
