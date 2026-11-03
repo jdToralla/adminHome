@@ -101,18 +101,6 @@ export default function AddData() {
     return `${horas}:${minutos}`;
   };
 
-  // Función para obtener mes y año actual en español (ej. "Noviembre 2026")
-  const obtenerMesAnioActual = () => {
-    const nombresMeses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-    const fechaActual = new Date();
-    return `${nombresMeses[fechaActual.getMonth()]} ${fechaActual.getFullYear()}`;
-  };
-
-  // Función para aplicar una sugerencia rápida de descripción
-  const aplicarSugerenciaDescripcion = (texto) => {
-    setDescripcion(texto);
-  };
-
   const [fecha, setFecha] = useState(obtenerFechaHoy());
   const [hora, setHora] = useState(obtenerHoraActual());
 
@@ -125,7 +113,6 @@ export default function AddData() {
   });
   const [metodoIngreso, setMetodoIngreso] = useState('Transferencia');
   const [subcategoria, setSubcategoria] = useState('');
-  const [etiquetas, setEtiquetas] = useState('');
   const [fuentePagador, setFuentePagador] = useState('');
   const [proyecto, setProyecto] = useState('');
   const [estadoTransaccion, setEstadoTransaccion] = useState('Confirmado');
@@ -151,13 +138,9 @@ export default function AddData() {
     setMonto((montoActual + incremento).toString());
   };
 
-  // Función para seleccionar categoría
+  // Función para seleccionar categoría (ingreso manual de descripción preservado)
   const seleccionarCategoria = (nombreCategoria) => {
     setCategoriaSeleccionada(nombreCategoria);
-    // Solo sugerir la categoría en la descripción si está vacía o si contenía solo el nombre de una categoría anterior
-    if (!descripcion.trim() || CATEGORIAS_INGRESOS.some(c => c.nombre.toLowerCase() === descripcion.trim().toLowerCase())) {
-      setDescripcion(nombreCategoria);
-    }
   };
 
   // Manejador para el archivo de comprobante
@@ -237,7 +220,7 @@ export default function AddData() {
         description: descripcion.trim() || categoriaSeleccionada,
         date: fecha,
         time: hora || obtenerHoraActual(),
-        tags: etiquetas.split(',').map(et => et.trim()).filter(Boolean),
+        tags: [],
         source: fuentePagador.trim() || null,
         project: proyecto.trim() || null,
         status: estadoTransaccion,
@@ -468,41 +451,6 @@ export default function AddData() {
                   onChange={(e) => setDescripcion(e.target.value)}
                 />
               </div>
-
-              {/* Píldoras con sugerencias inteligentes para captura ultra-rápida */}
-              <div className="pildoras-sumas-rapidas pildoras-descripcion-sugerencias justify-content-start mt-2">
-                <span style={{ fontSize: '0.72rem', color: '#8E92A4', alignSelf: 'center', fontWeight: 600 }}>
-                  Sugerencias:
-                </span>
-                <button
-                  type="button"
-                  className="boton-suma-rapida boton-sugerencia-concepto"
-                  onClick={() => aplicarSugerenciaDescripcion(`Pago ${obtenerMesAnioActual()}`)}
-                >
-                  + Pago {obtenerMesAnioActual()}
-                </button>
-                <button
-                  type="button"
-                  className="boton-suma-rapida boton-sugerencia-concepto"
-                  onClick={() => aplicarSugerenciaDescripcion(`Alquiler ${obtenerMesAnioActual()}`)}
-                >
-                  + Alquiler {obtenerMesAnioActual()}
-                </button>
-                <button
-                  type="button"
-                  className="boton-suma-rapida boton-sugerencia-concepto"
-                  onClick={() => aplicarSugerenciaDescripcion('Quincena 1')}
-                >
-                  + Quincena 1
-                </button>
-                <button
-                  type="button"
-                  className="boton-suma-rapida boton-sugerencia-concepto"
-                  onClick={() => aplicarSugerenciaDescripcion('Quincena 2')}
-                >
-                  + Quincena 2
-                </button>
-              </div>
             </div>
 
             {/* 3. SELECCIÓN DE CATEGORÍA CON ICONOS */}
@@ -530,7 +478,7 @@ export default function AddData() {
               </div>
             </div>
 
-            {/* 3. FECHA Y HORA (Precargadas en automático) */}
+            {/* 4. FECHA Y HORA (Precargadas en automático con espaciado amplio de icono) */}
             <div className="row g-2 mb-3">
               <div className="col-12 col-sm-6 mb-2 mb-sm-0">
                 <label className="etiqueta-campo-finanzia">Fecha</label>
@@ -560,36 +508,20 @@ export default function AddData() {
               </div>
             </div>
 
-            {/* BOTÓN PRINCIPAL DE GUARDADO RÁPIDO (< 5 segundos) */}
-            <button
-              type="submit"
-              className="boton-guardar-principal"
-              disabled={guardando}
-            >
-              {guardando ? (
-                <span><i className="fas fa-spinner fa-spin mr-2"></i> Guardando ingreso...</span>
-              ) : (
-                <span>
-                  <i className="fas fa-check-circle mr-1"></i>
-                  Guardar Ingreso {monto ? `(Q ${parseFloat(monto || 0).toFixed(2)})` : ''}
-                </span>
-              )}
-            </button>
-
-            {/* BOTÓN DESPLEGABLE PARA OPCIONES AVANZADAS */}
+            {/* BOTÓN DESPLEGABLE PARA OPCIONES AVANZADAS (Siempre opcional, antes de Guardar) */}
             <button
               type="button"
-              className="boton-desplegar-avanzado mt-2"
+              className="boton-desplegar-avanzado my-3"
               onClick={() => setMostrarOpcionesAvanzadas(!mostrarOpcionesAvanzadas)}
             >
-              <span>{mostrarOpcionesAvanzadas ? '▲ Ocultar opciones avanzadas' : '▼ Mostrar más detalles (Cuenta, Notas, Recurrencia)'}</span>
+              <span>{mostrarOpcionesAvanzadas ? '▲ Ocultar opciones avanzadas' : '▼ Opciones avanzadas (opcional: cuenta, recurrencia, comprobante)'}</span>
             </button>
 
             {/* =============================================================== */}
-            {/* 4. PANEL DE OPCIONES AVANZADAS (Progressive Disclosure)         */}
+            {/* PANEL DE OPCIONES AVANZADAS (Progressive Disclosure)            */}
             {/* =============================================================== */}
             {mostrarOpcionesAvanzadas && (
-              <div className="panel-opciones-avanzadas">
+              <div className="panel-opciones-avanzadas mb-3">
                 
                 {/* BLOQUE A: INFORMACIÓN FINANCIERA */}
                 <div className="seccion-avanzada-bloque">
@@ -626,10 +558,10 @@ export default function AddData() {
                   </div>
                 </div>
 
-                {/* BLOQUE B: CLASIFICACIÓN Y PROCEDENCIA */}
+                {/* BLOQUE B: CLASIFICACIÓN Y PROCEDENCIA (Sin sección de etiquetas) */}
                 <div className="seccion-avanzada-bloque">
                   <div className="titulo-seccion-avanzada">
-                    <i className="fas fa-tags mr-1" style={{ color: '#4E44EB' }}></i> Clasificación
+                    <i className="fas fa-layer-group mr-1" style={{ color: '#4E44EB' }}></i> Clasificación y Procedencia
                   </div>
 
                   <div className="row g-2 mb-2">
@@ -645,37 +577,26 @@ export default function AddData() {
                     </div>
 
                     <div className="col-12 col-sm-6">
-                      <label className="etiqueta-campo-finanzia">Etiquetas (separadas por coma)</label>
+                      <label className="etiqueta-campo-finanzia">Proyecto o Fuente</label>
                       <input
                         type="text"
-                        placeholder="#nomina, #trabajo, #extra"
+                        placeholder="Nombre del proyecto o procedencia"
                         className="campo-formulario-finanzia"
-                        value={etiquetas}
-                        onChange={(e) => setEtiquetas(e.target.value)}
+                        value={proyecto}
+                        onChange={(e) => setProyecto(e.target.value)}
                       />
                     </div>
                   </div>
 
                   <div className="row g-2">
-                    <div className="col-12 col-sm-6 mb-2 mb-sm-0">
+                    <div className="col-12">
                       <label className="etiqueta-campo-finanzia">Pagador / Entidad</label>
                       <input
                         type="text"
-                        placeholder="Empresa, cliente o persona"
+                        placeholder="Empresa, cliente o persona que realiza el pago"
                         className="campo-formulario-finanzia"
                         value={fuentePagador}
                         onChange={(e) => setFuentePagador(e.target.value)}
-                      />
-                    </div>
-
-                    <div className="col-12 col-sm-6">
-                      <label className="etiqueta-campo-finanzia">Proyecto o Fuente</label>
-                      <input
-                        type="text"
-                        placeholder="Nombre del proyecto"
-                        className="campo-formulario-finanzia"
-                        value={proyecto}
-                        onChange={(e) => setProyecto(e.target.value)}
                       />
                     </div>
                   </div>
@@ -737,11 +658,11 @@ export default function AddData() {
                 {/* BLOQUE D: AUDITORÍA Y NOTAS */}
                 <div className="seccion-avanzada-bloque">
                   <div className="titulo-seccion-avanzada">
-                    <i className="fas fa-file-alt mr-1" style={{ color: '#4E44EB' }}></i> Auditoría
+                    <i className="fas fa-file-alt mr-1" style={{ color: '#4E44EB' }}></i> Auditoría y Comprobante
                   </div>
 
                   <div className="mb-2">
-                    <label className="etiqueta-campo-finanzia">Descripción / Notas adicionales</label>
+                    <label className="etiqueta-campo-finanzia">Descripción detallada / Notas adicionales</label>
                     <textarea
                       rows="2"
                       className="campo-formulario-finanzia"
@@ -791,6 +712,22 @@ export default function AddData() {
 
               </div>
             )}
+
+            {/* BOTÓN PRINCIPAL DE GUARDAR INGRESO (Siempre al final, después de opciones avanzadas) */}
+            <button
+              type="submit"
+              className="boton-guardar-principal"
+              disabled={guardando}
+            >
+              {guardando ? (
+                <span><i className="fas fa-spinner fa-spin mr-2"></i> Guardando ingreso...</span>
+              ) : (
+                <span>
+                  <i className="fas fa-check-circle mr-1"></i>
+                  Guardar Ingreso {monto ? `(Q ${parseFloat(monto || 0).toFixed(2)})` : ''}
+                </span>
+              )}
+            </button>
 
           </form>
         ) : (
