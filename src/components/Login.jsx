@@ -5,36 +5,45 @@ import { auth, firedb, googleProvider } from '../firebaseConfig';
 import './styles.css';
 
 function Login() {
-  const [email, setEmail] = useState('norma77');
-  const [pass, setPass] = useState('toralla12');
+  const [mode, setMode] = useState('login'); // 'login' or 'register'
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [pass, setPass] = useState('');
+  const [confirmPass, setConfirmPass] = useState('');
   const [showPass, setShowPass] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [msgerror, setMsgError] = useState(null);
-  const [dataUser, setDataUser] = useState([]);
   const [loading, setLoading] = useState(false);
   const historial = useHistory();
 
   useEffect(() => {
-    localStorage.setItem('currentId', '');
-    localStorage.setItem('currentUserEmail', '');
-    localStorage.setItem('currentUserName', '');
-    localStorage.setItem('currentUserPhoto', '');
-    getData();
-  }, []);
+    // 1. Check if user already has an active session to skip login
+    const savedId = localStorage.getItem('currentId');
+    const savedEmail = localStorage.getItem('rememberedEmail');
 
-  const getData = async () => {
-    try {
-      const { docs } = await firedb.collection('users').get();
-      const nuevoArray = docs.map((item) => ({
-        id: item.id,
-        ...item.data(),
-      }));
-      setDataUser(nuevoArray);
-    } catch (err) {
-      console.error('Error fetching users:', err);
+    if (savedEmail) {
+      setEmail(savedEmail);
     }
-  };
 
-  // Google Sign In (Authentication + auto registration)
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        localStorage.setItem('currentId', user.uid);
+        localStorage.setItem('currentUserEmail', user.email || '');
+        localStorage.setItem('currentUserName', user.displayName || (user.email ? user.email.split('@')[0] : 'Usuario'));
+        if (user.photoURL) {
+          localStorage.setItem('currentUserPhoto', user.photoURL);
+        }
+        historial.push('/home');
+      } else if (savedId) {
+        // Legacy active session
+        historial.push('/home');
+      }
+    });
+
+    return () => unsubscribe();
+  }, [historial]);
+
+  // Google Sign In & Auto-Registration
   const iniciarConGoogle = async () => {
     setMsgError(null);
     setLoading(true);
@@ -49,7 +58,7 @@ function Login() {
           localStorage.setItem('currentUserPhoto', user.photoURL);
         }
 
-        // Auto-register/sync user in Firestore 'users' collection
+        // Auto-sync in Firestore 'users'
         try {
           const userDoc = await firedb.collection('users').doc(user.uid).get();
           if (!userDoc.exists) {
@@ -82,11 +91,11 @@ function Login() {
         if (errorText.includes('CONFIGURATION_NOT_FOUND') || error.code === 'auth/configuration-not-found') {
           _swal({
             title: 'Habilitar Google en Firebase',
-            text: 'El proveedor de Google aún no está activado en tu consola de Firebase. Debes ingresar a Firebase Console > Authentication > Sign-in method y activar "Google". Consulta el archivo GUIA_ADMINISTRADOR_FIREBASE.md para el paso a paso.',
+            text: 'El proveedor de Google aún no está activado en tu consola de Firebase. Debes ingresar a Firebase Console > Authentication > Sign-in method y activar "Google". Consulta GUIA_ADMINISTRADOR_FIREBASE.md',
             icon: 'info',
             button: 'Entendido'
           });
-          setMsgError('Debes habilitar el proveedor "Google" en la consola de Firebase. Consulta GUIA_ADMINISTRADOR_FIREBASE.md');
+          setMsgError('Debes habilitar el proveedor "Google" en la consola de Firebase.');
         } else {
           setMsgError(error.message || 'Error al iniciar sesión con Google.');
         }
@@ -96,49 +105,143 @@ function Login() {
     }
   };
 
-  // Email / Password Login (Firebase Auth with legacy fallback)
-  const registrarUsuario = async (e) => {
+  // Submit Handler: Login or Register
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setMsgError(null);
     setLoading(true);
 
-    const cleanInput = email.trim();
+    const cleanEmail = email.trim();
     const cleanPass = pass.trim();
 
-    try {
-      // 1. Try Firebase Authentication (if input is email or auth user)
-      if (cleanInput.includes('@')) {
-        const userCred = await auth.signInWithEmailAndPassword(cleanInput, cleanPass);
+    // Mode: REGISTRO DE NUEVA CUENTA
+    if (mode === 'register') {
+      if (!cleanEmail.includes('@')) {
+        setMsgError('Por favor ingresa un correo electrónico válido.');
+        setLoading(false);
+        return;
+      }
+      if (cleanPass.length < 6) {
+        setMsgError('La contraseña debe tener al menos 6 caracteres.');
+        setLoading(false);
+        return;
+      }
+      if (cleanPass !== confirmPass.trim()) {
+        setMsgError('Las contraseñas no coinciden. Por favor verifícalas.');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const userCred = await auth.createUserWithEmailAndPassword(cleanEmail, cleanPass);
         const user = userCred.user;
         if (user) {
+          const displayName = name.trim() || cleanEmail.split('@')[0];
+          try {
+            await user.updateProfile({ displayName: displayName });
+          } catch (pErr) {
+            console.warn('Update profile error:', pErr);
+          }
+
+          // Register in Firestore 'users'
+          try {
+            await firedb.collection('users').doc(user.uid).set({
+              uid: user.uid,
+              user: displayName,
+              email: cleanEmail,
+              createdAt: new Date().toISOString(),
+              authProvider: 'password'
+            });
+          } catch (fErr) {
+            console.warn('Firestore user save error:', fErr);
+          }
+
+          if (rememberMe) {
+            localStorage.setItem('rememberedEmail', cleanEmail);
+          }
           localStorage.setItem('currentId', user.uid);
-          localStorage.setItem('currentUserEmail', user.email || cleanInput);
-          localStorage.setItem('currentUserName', user.displayName || cleanInput.split('@')[0]);
+          localStorage.setItem('currentUserEmail', cleanEmail);
+          localStorage.setItem('currentUserName', displayName);
+
+          _swal({
+            title: '¡Cuenta creada con éxito!',
+            text: `Bienvenido a AdminHome, ${displayName}.`,
+            icon: 'success',
+            timer: 1300,
+            buttons: false
+          });
+          historial.push('/home');
+        }
+      } catch (regError) {
+        console.error('Registration error:', regError);
+        let msg = 'No se pudo crear la cuenta.';
+        if (regError.code === 'auth/email-already-in-use') {
+          msg = 'Este correo ya está registrado. Puedes iniciar sesión directamente.';
+        } else if (regError.code === 'auth/invalid-email') {
+          msg = 'El formato del correo electrónico es inválido.';
+        } else if (regError.code === 'auth/weak-password') {
+          msg = 'La contraseña es demasiado débil (mínimo 6 caracteres).';
+        }
+        setMsgError(msg);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // Mode: INICIO DE SESIÓN
+    try {
+      // 1. Try Firebase Authentication (Email + Password)
+      const userCred = await auth.signInWithEmailAndPassword(cleanEmail, cleanPass);
+      const user = userCred.user;
+      if (user) {
+        if (rememberMe) {
+          localStorage.setItem('rememberedEmail', cleanEmail);
+        } else {
+          localStorage.removeItem('rememberedEmail');
+        }
+        localStorage.setItem('currentId', user.uid);
+        localStorage.setItem('currentUserEmail', user.email || cleanEmail);
+        localStorage.setItem('currentUserName', user.displayName || cleanEmail.split('@')[0]);
+        historial.push('/home');
+        return;
+      }
+    } catch (authError) {
+      console.log('Firebase auth failed, checking legacy Firestore fallback:', authError.code);
+
+      // 2. Fallback to legacy Firestore 'users' (for existing accounts like norma77)
+      try {
+        const { docs } = await firedb.collection('users').get();
+        const matched = docs.map(d => ({ id: d.id, ...d.data() })).find(
+          u => (u.email === cleanEmail || u.user === cleanEmail) && u.pass === cleanPass
+        );
+
+        if (matched) {
+          if (rememberMe) {
+            localStorage.setItem('rememberedEmail', cleanEmail);
+          }
+          localStorage.setItem('currentId', matched.id);
+          localStorage.setItem('currentUserEmail', matched.email || matched.user);
+          localStorage.setItem('currentUserName', matched.user || 'Usuario');
           historial.push('/home');
           return;
         }
+      } catch (legacyErr) {
+        console.warn('Legacy fallback error:', legacyErr);
       }
-      throw new Error('FallbackToLegacy');
-    } catch (authErr) {
-      // 2. Fallback to Firestore 'users' collection for legacy credentials (e.g. norma77 / toralla12)
-      const matchedUser = dataUser.find(
-        (u) => (u.user === cleanInput || u.email === cleanInput) && u.pass === cleanPass
-      );
 
-      if (matchedUser) {
-        localStorage.setItem('currentId', matchedUser.id);
-        localStorage.setItem('currentUserEmail', matchedUser.email || matchedUser.user);
-        localStorage.setItem('currentUserName', matchedUser.user || 'Usuario');
-        historial.push('/home');
-      } else {
-        let msg = 'Usuario o contraseña incorrectos.';
-        if (authErr.code === 'auth/wrong-password') {
-          msg = 'Contraseña incorrecta. Puedes recuperarla con el enlace de abajo.';
-        } else if (authErr.code === 'auth/too-many-requests') {
-          msg = 'Demasiados intentos fallidos. Intenta más tarde o restablece tu clave.';
-        }
-        setMsgError(msg);
+      // Friendly error mapping
+      let msg = 'Correo o contraseña incorrectos.';
+      if (authError.code === 'auth/wrong-password') {
+        msg = 'Contraseña incorrecta. Puedes recuperarla con el enlace de abajo.';
+      } else if (authError.code === 'auth/user-not-found') {
+        msg = 'No se encontró ninguna cuenta registrada con este correo.';
+      } else if (authError.code === 'auth/invalid-email') {
+        msg = 'Por favor ingresa un formato de correo electrónico válido.';
+      } else if (authError.code === 'auth/too-many-requests') {
+        msg = 'Demasiados intentos fallidos. Intenta más tarde o restablece tu clave.';
       }
+      setMsgError(msg);
     } finally {
       setLoading(false);
     }
@@ -148,11 +251,11 @@ function Login() {
   const recuperarPassword = () => {
     _swal({
       title: 'Recuperar contraseña',
-      text: 'Ingresa tu correo electrónico registrado para enviarte las instrucciones de restablecimiento:',
+      text: 'Ingresa tu correo electrónico registrado y te enviaremos un enlace oficial para restablecerla:',
       content: {
         element: 'input',
         attributes: {
-          placeholder: 'tu-correo@ejemplo.com',
+          placeholder: 'correo@ejemplo.com',
           type: 'email',
           defaultValue: email.includes('@') ? email : ''
         }
@@ -160,7 +263,7 @@ function Login() {
       buttons: {
         cancel: 'Cancelar',
         confirm: {
-          text: 'Enviar correo',
+          text: 'Enviar enlace',
           closeModal: false
         }
       }
@@ -180,7 +283,7 @@ function Login() {
         await auth.sendPasswordResetEmail(targetEmail);
         _swal({
           title: '¡Correo enviado!',
-          text: `Hemos enviado un enlace de recuperación a ${targetEmail}. Por favor revisa tu bandeja de entrada o spam.`,
+          text: `Hemos enviado el enlace de recuperación a ${targetEmail}. Revisa tu bandeja de entrada o spam.`,
           icon: 'success'
         });
       } catch (err) {
@@ -206,14 +309,38 @@ function Login() {
         
         {/* Brand Icon Badge */}
         <div className="login-brand-icon-wrap">
-          <i className="fas fa-piggy-bank"></i>
+          <i className="fas fa-wallet"></i>
         </div>
 
         {/* Header Titles */}
-        <h2 className="login-card-title">Bienvenido a AdminHome</h2>
+        <h2 className="login-card-title">
+          {mode === 'login' ? 'Bienvenido a AdminHome' : 'Crea tu cuenta'}
+        </h2>
         <p className="login-card-subtitle">
-          Inicia sesión o continúa con tu cuenta de Google para administrar tus finanzas.
+          {mode === 'login'
+            ? 'Ingresa con tu correo y contraseña para administrar tus finanzas.'
+            : 'Completa tus datos para registrarte y empezar a usar la aplicación.'}
         </p>
+
+        {/* Mode Selector (Iniciar Sesión vs Crear Cuenta) */}
+        <div className="segmented-pills mb-3" style={{ background: '#F4F2F0', padding: '4px' }}>
+          <button
+            type="button"
+            className={`segmented-pill-btn ${mode === 'login' ? 'active' : ''}`}
+            onClick={() => { setMode('login'); setMsgError(null); }}
+            style={{ padding: '8px 12px', fontSize: '0.84rem' }}
+          >
+            <i className="fas fa-sign-in-alt mr-1"></i> Iniciar Sesión
+          </button>
+          <button
+            type="button"
+            className={`segmented-pill-btn ${mode === 'register' ? 'active' : ''}`}
+            onClick={() => { setMode('register'); setMsgError(null); }}
+            style={{ padding: '8px 12px', fontSize: '0.84rem' }}
+          >
+            <i className="fas fa-user-plus mr-1"></i> Registrarse
+          </button>
+        </div>
 
         {/* Error Alert */}
         {msgerror && (
@@ -225,7 +352,7 @@ function Login() {
               border: '1px solid #FFD4C9',
               borderRadius: '14px',
               color: '#F46F5F',
-              fontSize: '0.86rem',
+              fontSize: '0.84rem',
               fontWeight: 600,
               padding: '10px 14px'
             }}
@@ -248,7 +375,7 @@ function Login() {
             <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
             <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
           </svg>
-          <span>Continuar con Google</span>
+          <span>{mode === 'login' ? 'Continuar con Google' : 'Registrarme con Google'}</span>
         </button>
 
         {/* Divider */}
@@ -256,20 +383,39 @@ function Login() {
           <span>o con correo electrónico</span>
         </div>
 
-        {/* Login Form */}
-        <form onSubmit={registrarUsuario}>
+        {/* Main Form */}
+        <form onSubmit={handleSubmit}>
+          
+          {/* Nombre (solo en modo registro) */}
+          {mode === 'register' && (
+            <div className="auth-input-wrapper">
+              <i className="fas fa-user auth-input-icon"></i>
+              <input
+                onChange={(e) => setName(e.target.value)}
+                value={name}
+                className="auth-input-field"
+                type="text"
+                placeholder="Nombre completo (ej. Diego)"
+                required
+              />
+            </div>
+          )}
+
+          {/* Correo Electrónico */}
           <div className="auth-input-wrapper">
             <i className="fas fa-envelope auth-input-icon"></i>
             <input
               onChange={(e) => setEmail(e.target.value)}
               value={email}
               className="auth-input-field"
-              type="text"
-              placeholder="Correo o usuario"
+              type="email"
+              placeholder="correo@ejemplo.com"
               required
+              autoFocus
             />
           </div>
 
+          {/* Contraseña */}
           <div className="auth-input-wrapper">
             <i className="fas fa-lock auth-input-icon"></i>
             <input
@@ -277,7 +423,7 @@ function Login() {
               value={pass}
               className="auth-input-field"
               type={showPass ? 'text' : 'password'}
-              placeholder="Contraseña"
+              placeholder={mode === 'register' ? 'Contraseña (mínimo 6 caracteres)' : 'Contraseña'}
               required
             />
             <button
@@ -300,21 +446,45 @@ function Login() {
             </button>
           </div>
 
-          {/* Remember me & Forgot password link */}
-          <div className="d-flex justify-content-between align-items-center mb-3 px-1">
-            <label className="d-flex align-items-center mb-0" style={{ fontSize: '0.8rem', color: '#8E92A4', cursor: 'pointer' }}>
-              <input type="checkbox" defaultChecked className="mr-2" style={{ accentColor: '#4E44EB' }} />
-              Recordarme
-            </label>
-            <span
-              style={{ fontSize: '0.8rem', color: '#4E44EB', fontWeight: 700, cursor: 'pointer' }}
-              onClick={recuperarPassword}
-              title="Recuperar contraseña por correo"
-            >
-              ¿Olvidaste tu contraseña?
-            </span>
-          </div>
+          {/* Confirmar Contraseña (solo en modo registro) */}
+          {mode === 'register' && (
+            <div className="auth-input-wrapper">
+              <i className="fas fa-check-double auth-input-icon"></i>
+              <input
+                onChange={(e) => setConfirmPass(e.target.value)}
+                value={confirmPass}
+                className="auth-input-field"
+                type={showPass ? 'text' : 'password'}
+                placeholder="Confirmar contraseña"
+                required
+              />
+            </div>
+          )}
 
+          {/* Remember me & Forgot password (en modo login) */}
+          {mode === 'login' && (
+            <div className="d-flex justify-content-between align-items-center mb-3 px-1">
+              <label className="d-flex align-items-center mb-0" style={{ fontSize: '0.8rem', color: '#8E92A4', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="mr-2"
+                  style={{ accentColor: '#4E44EB' }}
+                />
+                Recordarme
+              </label>
+              <span
+                style={{ fontSize: '0.8rem', color: '#4E44EB', fontWeight: 700, cursor: 'pointer' }}
+                onClick={recuperarPassword}
+                title="Recuperar contraseña por correo"
+              >
+                ¿Olvidaste tu contraseña?
+              </span>
+            </div>
+          )}
+
+          {/* Submit Button */}
           <button
             type="submit"
             className="auth-btn-submit"
@@ -326,18 +496,35 @@ function Login() {
               </span>
             ) : (
               <span>
-                Iniciar Sesión <i className="fas fa-arrow-right ml-2"></i>
+                {mode === 'login' ? 'Iniciar Sesión' : 'Crear Cuenta y Entrar'} <i className="fas fa-arrow-right ml-2"></i>
               </span>
             )}
           </button>
         </form>
 
-        {/* Demo Credentials Helper Box */}
-        <div className="demo-credentials-card">
-          <i className="fas fa-info-circle" style={{ color: '#4E44EB', fontSize: '0.95rem' }}></i>
-          <span>
-            <strong>Acceso demo:</strong> <code>norma77</code> / <code>toralla12</code> o tu cuenta de Google.
-          </span>
+        {/* Bottom Switcher Link */}
+        <div className="text-center mt-3 pt-2" style={{ borderTop: '1px solid #F0ECE8' }}>
+          {mode === 'login' ? (
+            <span style={{ fontSize: '0.82rem', color: '#8E92A4' }}>
+              ¿Aún no tienes cuenta?{' '}
+              <strong
+                style={{ color: '#4E44EB', cursor: 'pointer' }}
+                onClick={() => { setMode('register'); setMsgError(null); }}
+              >
+                Regístrate aquí
+              </strong>
+            </span>
+          ) : (
+            <span style={{ fontSize: '0.82rem', color: '#8E92A4' }}>
+              ¿Ya tienes una cuenta?{' '}
+              <strong
+                style={{ color: '#4E44EB', cursor: 'pointer' }}
+                onClick={() => { setMode('login'); setMsgError(null); }}
+              >
+                Inicia sesión
+              </strong>
+            </span>
+          )}
         </div>
 
       </div>
