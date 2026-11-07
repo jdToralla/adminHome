@@ -327,7 +327,7 @@ export default function Home() {
 
   return (
     <div className="container" style={{ paddingTop: '16px', paddingBottom: '90px', maxWidth: '640px' }}>
-      
+
       {/* =============================================================== */}
       {/* 1. ENCABEZADO MINIMALISTA NATIVO (Reemplaza navbar tradicional)  */}
       {/* =============================================================== */}
@@ -490,7 +490,7 @@ export default function Home() {
         <div className="widget-titulo-seccion">
           <span>
             <i className="fas fa-chart-bar mr-2" style={{ color: '#4E44EB' }}></i>
-            Flujo de Efectivo: Ingresos vs Gastos
+            Ingresos vs Gastos
           </span>
           <span
             className={`badge-diferencia-flujo ${estadisticasFlujoSemanal.diferencia >= 0 ? 'superavit' : 'deficit'}`}
@@ -747,8 +747,8 @@ export default function Home() {
           style={{ borderRadius: '14px', fontWeight: 700, fontSize: '0.86rem' }}
           onClick={() => historial.push('/movimientos')}
         >
-          <i className="fas fa-receipt"></i>
-          Ver todos los movimientos en pantalla dedicada
+          <i className="fas fa-receipt mx-2"></i>
+          Ver todos los movimientos
         </button>
 
         {/* Acceso directo a la nueva pantalla dedicada de Reportes */}
@@ -758,8 +758,8 @@ export default function Home() {
           style={{ borderRadius: '14px', fontWeight: 700, fontSize: '0.86rem', color: '#4E44EB', background: '#F5F4FE', border: '1px solid #E0DCFE' }}
           onClick={() => historial.push('/reportes')}
         >
-          <i className="fas fa-chart-pie"></i>
-          Ir al Centro de Reportes y Estadísticas ➔
+          <i className="fas fa-chart-pie mx-2"></i>
+          Ir Reportes y Estadísticas ➔
         </button>
       </div>
 
@@ -821,6 +821,28 @@ export default function Home() {
                   <span className="font-weight-bold">{movimientoSeleccionado.cuentaOrigen || movimientoSeleccionado.cuentaDestino || 'Efectivo'}</span>
                 </div>
               </div>
+
+              {movimientoSeleccionado.attachmentUrl && (
+                <div className="mb-3 p-2 bg-light rounded text-center border">
+                  <img
+                    src={movimientoSeleccionado.attachmentUrl}
+                    alt="Ticket"
+                    className="img-fluid rounded mb-2"
+                    style={{ maxHeight: '140px', objectFit: 'contain', cursor: 'pointer' }}
+                    onClick={() => window.open(movimientoSeleccionado.attachmentUrl, '_blank')}
+                    title="Toca para ver tamaño original"
+                  />
+                  <a
+                    href={movimientoSeleccionado.attachmentUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-sm btn-outline-primary d-block font-weight-bold"
+                    style={{ fontSize: '0.78rem' }}
+                  >
+                    <i className="fas fa-external-link-alt mr-1"></i> Ver comprobante / ticket ↗
+                  </a>
+                </div>
+              )}
 
               <button
                 type="button"

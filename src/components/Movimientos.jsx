@@ -571,6 +571,11 @@ export default function Movimientos() {
                     <span className="transaccion-fecha-texto">
                       {item.fechaLegible || item.fecha} &bull; {item.hora || ''}
                     </span>
+                    {item.attachmentUrl && (
+                      <span className="badge-ticket-adjunto" title="Comprobante adjunto">
+                        <i className="fas fa-paperclip"></i> Ticket
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -693,6 +698,43 @@ export default function Movimientos() {
                   </div>
                 )}
               </div>
+
+              {/* Comprobante / Ticket Adjunto alojado en Cloudinary */}
+              {itemSeleccionado.attachmentUrl && (
+                <div className="mb-3 p-3 bg-light rounded-lg border text-center">
+                  <div className="d-flex align-items-center justify-content-between mb-2">
+                    <span className="font-weight-bold" style={{ fontSize: '0.82rem', color: '#1E1F30' }}>
+                      <i className="fas fa-receipt mr-1" style={{ color: '#4E44EB' }}></i>
+                      Comprobante / Ticket adjunto
+                    </span>
+                    <span className="badge badge-success" style={{ fontSize: '0.7rem' }}>
+                      <i className="fas fa-check mr-1"></i>En la nube
+                    </span>
+                  </div>
+
+                  <div className="position-relative text-center my-2">
+                    <img
+                      src={itemSeleccionado.attachmentUrl}
+                      alt="Comprobante ticket"
+                      className="img-fluid rounded shadow-sm"
+                      style={{ maxHeight: '180px', objectFit: 'contain', cursor: 'pointer' }}
+                      onClick={() => window.open(itemSeleccionado.attachmentUrl, '_blank')}
+                      title="Toca para abrir a tamaño original"
+                    />
+                  </div>
+
+                  <a
+                    href={itemSeleccionado.attachmentUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-sm btn-outline-primary w-100 py-1 d-flex align-items-center justify-content-center gap-2 mt-2"
+                    style={{ borderRadius: '10px', fontWeight: 700, fontSize: '0.8rem' }}
+                  >
+                    <i className="fas fa-external-link-alt"></i>
+                    Ver comprobante a tamaño completo ↗
+                  </a>
+                </div>
+              )}
 
               {/* Botón de Eliminación */}
               <button

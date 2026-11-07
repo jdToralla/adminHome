@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import _swal from 'sweetalert';
-import { auth, firedb, fire_storage, firebase } from '../firebaseConfig';
+import { auth, firedb, firebase } from '../firebaseConfig';
+import { subirACloudinary } from '../utils/cloudinary';
 import './styles.css';
 
 /**
@@ -244,8 +245,17 @@ export default function AddData() {
   const [esRecurrente, setEsRecurrente] = useState(false);
   const [frecuenciaRecurrencia, setFrecuenciaRecurrencia] = useState('Quincenal');
   const [archivoComprobante, setArchivoComprobante] = useState(null);
+  const [urlVistaPrevia, setUrlVistaPrevia] = useState(null);
   const [impactoPatrimonial, setImpactoPatrimonial] = useState(true);
   const [guardando, setGuardando] = useState(false);
+
+  // Estados de progreso de subida a Cloudinary
+  const [progresoSubida, setProgresoSubida] = useState(0);
+  const [estadoSubidaTexto, setEstadoSubidaTexto] = useState('');
+
+  // Referencias a los inputs de archivo para Ingresos (Cámara y Galería)
+  const refInputCamaraIngreso = useRef(null);
+  const refInputGaleriaIngreso = useRef(null);
 
   // ---------------------------------------------------------------------------
   // 3. ESTADOS DEL MÓDULO DE EGRESOS (GASTOS)
@@ -270,11 +280,52 @@ export default function AddData() {
   const [diaCorteGasto, setDiaCorteGasto] = useState('15');
   const [diaPagoGasto, setDiaPagoGasto] = useState('05');
   const [archivoComprobanteGasto, setArchivoComprobanteGasto] = useState(null);
+  const [urlVistaPreviaGasto, setUrlVistaPreviaGasto] = useState(null);
 
-  // Manejador para el archivo de comprobante de gasto
-  const manejarCambioArchivoGasto = (e) => {
+  // Referencias a los inputs de archivo para Egresos (Cámara y Galería)
+  const refInputCamaraGasto = useRef(null);
+  const refInputGaleriaGasto = useRef(null);
+
+  // Utilidad para formatear el tamaño en KB / MB
+  const formatearTamanioArchivo = (bytes) => {
+    if (!bytes) return '0 KB';
+    const k = 1024;
+    if (bytes < k) return `${bytes} B`;
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${(bytes / Math.pow(k, i)).toFixed(1)} ${['B', 'KB', 'MB'][i]}`;
+  };
+
+  // Manejador para seleccionar o fotografiar comprobante
+  const manejarSeleccionComprobante = (e, esGasto = false) => {
     if (e.target.files && e.target.files[0]) {
-      setArchivoComprobanteGasto(e.target.files[0]);
+      const archivo = e.target.files[0];
+      const urlBlob = URL.createObjectURL(archivo);
+      if (esGasto) {
+        if (urlVistaPreviaGasto) URL.revokeObjectURL(urlVistaPreviaGasto);
+        setArchivoComprobanteGasto(archivo);
+        setUrlVistaPreviaGasto(urlBlob);
+      } else {
+        if (urlVistaPrevia) URL.revokeObjectURL(urlVistaPrevia);
+        setArchivoComprobante(archivo);
+        setUrlVistaPrevia(urlBlob);
+      }
+    }
+  };
+
+  // Manejador para quitar o descartar comprobante seleccionado
+  const quitarComprobante = (esGasto = false) => {
+    if (esGasto) {
+      if (urlVistaPreviaGasto) URL.revokeObjectURL(urlVistaPreviaGasto);
+      setArchivoComprobanteGasto(null);
+      setUrlVistaPreviaGasto(null);
+      if (refInputCamaraGasto.current) refInputCamaraGasto.current.value = '';
+      if (refInputGaleriaGasto.current) refInputGaleriaGasto.current.value = '';
+    } else {
+      if (urlVistaPrevia) URL.revokeObjectURL(urlVistaPrevia);
+      setArchivoComprobante(null);
+      setUrlVistaPrevia(null);
+      if (refInputCamaraIngreso.current) refInputCamaraIngreso.current.value = '';
+      if (refInputGaleriaIngreso.current) refInputGaleriaIngreso.current.value = '';
     }
   };
 
@@ -299,12 +350,7 @@ export default function AddData() {
     setCategoriaSeleccionada(nombreCategoria);
   };
 
-  // Manejador para el archivo de comprobante
-  const manejarCambioArchivo = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      setArchivoComprobante(e.target.files[0]);
-    }
-  };
+
 
   // ---------------------------------------------------------------------------
   // FUNCIÓN PRINCIPAL: Guardar Ingreso con Arquitectura Optimizada
@@ -348,16 +394,23 @@ export default function AddData() {
     setGuardando(true);
 
     try {
-      // 1. Subir comprobante a Firebase Storage si se adjuntó un archivo
+      // 1. Subir comprobante a Cloudinary si se adjuntó un archivo
       let urlFinalComprobante = null;
       if (archivoComprobante) {
         try {
-          const nombreArchivo = `${Date.now()}_${archivoComprobante.name}`;
-          const referenciaStorage = fire_storage.child(`comprobantes/${idUsuario}/${nombreArchivo}`);
-          const resultadoSubida = await referenciaStorage.put(archivoComprobante);
-          urlFinalComprobante = await resultadoSubida.ref.getDownloadURL();
-        } catch (errorStorage) {
-          console.warn('No se pudo subir comprobante a Storage, continuando:', errorStorage);
+          urlFinalComprobante = await subirACloudinary(
+            archivoComprobante,
+            (porcentaje) => setProgresoSubida(porcentaje),
+            (texto) => setEstadoSubidaTexto(texto)
+          );
+        } catch (errorCloudinary) {
+          console.warn('Error al subir comprobante a Cloudinary, guardando sin comprobante:', errorCloudinary);
+          _swal({
+            title: 'Aviso de comprobante',
+            text: 'No se pudo subir la foto del comprobante, pero tu ingreso se guardará correctamente.',
+            icon: 'warning',
+            button: 'Continuar'
+          });
         }
       }
 
@@ -450,6 +503,8 @@ export default function AddData() {
       });
     } finally {
       setGuardando(false);
+      setProgresoSubida(0);
+      setEstadoSubidaTexto('');
     }
   };
 
@@ -495,16 +550,23 @@ export default function AddData() {
     setGuardando(true);
 
     try {
-      // 1. Subir comprobante a Firebase Storage si se adjuntó un archivo
+      // 1. Subir comprobante a Cloudinary si se adjuntó un archivo
       let urlFinalComprobante = null;
       if (archivoComprobanteGasto) {
         try {
-          const nombreArchivo = `${Date.now()}_${archivoComprobanteGasto.name}`;
-          const referenciaStorage = fire_storage.child(`comprobantes/${idUsuario}/${nombreArchivo}`);
-          const resultadoSubida = await referenciaStorage.put(archivoComprobanteGasto);
-          urlFinalComprobante = await resultadoSubida.ref.getDownloadURL();
-        } catch (errorStorage) {
-          console.warn('No se pudo subir comprobante de gasto a Storage:', errorStorage);
+          urlFinalComprobante = await subirACloudinary(
+            archivoComprobanteGasto,
+            (porcentaje) => setProgresoSubida(porcentaje),
+            (texto) => setEstadoSubidaTexto(texto)
+          );
+        } catch (errorCloudinary) {
+          console.warn('Error al subir comprobante de gasto a Cloudinary:', errorCloudinary);
+          _swal({
+            title: 'Aviso de comprobante',
+            text: 'No se pudo subir la foto del comprobante, pero tu gasto se guardará correctamente.',
+            icon: 'warning',
+            button: 'Continuar'
+          });
         }
       }
 
@@ -621,6 +683,8 @@ export default function AddData() {
       });
     } finally {
       setGuardando(false);
+      setProgresoSubida(0);
+      setEstadoSubidaTexto('');
     }
   };
 
@@ -957,19 +1021,102 @@ export default function AddData() {
                     ></textarea>
                   </div>
 
-                  <div>
-                    <label className="etiqueta-campo-finanzia">Adjuntar comprobante o voucher</label>
+                  <div className={`contenedor-adjunto-comprobante ${archivoComprobante ? 'con-archivo' : ''}`}>
+                    <label className="etiqueta-campo-finanzia d-flex justify-content-between align-items-center mb-1">
+                      <span>
+                        <i className="fas fa-receipt mr-1" style={{ color: '#4E44EB' }}></i>
+                        Adjuntar comprobante o voucher
+                      </span>
+                      <span style={{ fontSize: '0.72rem', color: '#8E92A4', fontWeight: 600 }}>Opcional</span>
+                    </label>
+
+                    {/* Inputs de archivo ocultos (Cámara directa vs Galería) */}
                     <input
                       type="file"
-                      accept="image/*,.pdf"
-                      className="campo-formulario-finanzia"
-                      onChange={manejarCambioArchivo}
-                      style={{ padding: '6px 10px' }}
+                      ref={refInputCamaraIngreso}
+                      accept="image/*"
+                      capture="environment"
+                      style={{ display: 'none' }}
+                      onChange={(e) => manejarSeleccionComprobante(e, false)}
                     />
-                    {archivoComprobante && (
-                      <span style={{ fontSize: '0.74rem', color: '#10B981', fontWeight: 600 }}>
-                        <i className="fas fa-check mr-1"></i> Archivo seleccionado: {archivoComprobante.name}
-                      </span>
+                    <input
+                      type="file"
+                      ref={refInputGaleriaIngreso}
+                      accept="image/*,.pdf"
+                      style={{ display: 'none' }}
+                      onChange={(e) => manejarSeleccionComprobante(e, false)}
+                    />
+
+                    {!archivoComprobante ? (
+                      <div>
+                        <div className="botones-seleccion-comprobante">
+                          <button
+                            type="button"
+                            className="boton-opcion-foto"
+                            onClick={() => refInputCamaraIngreso.current && refInputCamaraIngreso.current.click()}
+                          >
+                            <i className="fas fa-camera" style={{ color: '#4E44EB' }}></i>
+                            <span>Tomar foto</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="boton-opcion-foto"
+                            onClick={() => refInputGaleriaIngreso.current && refInputGaleriaIngreso.current.click()}
+                          >
+                            <i className="fas fa-images" style={{ color: '#10B981' }}></i>
+                            <span>Elegir galería</span>
+                          </button>
+                        </div>
+                        <span style={{ fontSize: '0.72rem', color: '#8E92A4', display: 'block', marginTop: '6px', textAlign: 'center' }}>
+                          <i className="fas fa-magic mr-1" style={{ color: '#4E44EB' }}></i>
+                          Optimizado y comprimido automáticamente en Cloudinary
+                        </span>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="tarjeta-preview-ticket">
+                          {urlVistaPrevia && (
+                            <img
+                              src={urlVistaPrevia}
+                              alt="Vista previa ticket"
+                              className="miniatura-preview-ticket"
+                              onClick={() => window.open(urlVistaPrevia, '_blank')}
+                              title="Toca para ver tamaño completo"
+                            />
+                          )}
+                          <div className="info-preview-ticket">
+                            <span className="nombre-preview-ticket">{archivoComprobante.name}</span>
+                            <span className="badge-peso-ticket">
+                              <i className="fas fa-check-circle mr-1"></i>
+                              Listo para subir ({formatearTamanioArchivo(archivoComprobante.size)})
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            className="boton-quitar-ticket"
+                            onClick={() => quitarComprobante(false)}
+                            title="Quitar foto seleccionada"
+                          >
+                            <i className="fas fa-trash-alt"></i>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Barra de progreso de subida activa */}
+                    {guardando && progresoSubida > 0 && (
+                      <div className="contenedor-progreso-subida">
+                        <div className="cabecera-progreso-subida">
+                          <span>{estadoSubidaTexto || 'Subiendo comprobante...'}</span>
+                          <span>{progresoSubida}%</span>
+                        </div>
+                        <div className="barra-fondo-progreso">
+                          <div
+                            className="barra-relleno-progreso"
+                            style={{ width: `${progresoSubida}%` }}
+                          ></div>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -1005,7 +1152,10 @@ export default function AddData() {
               disabled={guardando}
             >
               {guardando ? (
-                <span><i className="fas fa-spinner fa-spin mr-2"></i> Guardando ingreso...</span>
+                <span>
+                  <i className="fas fa-spinner fa-spin mr-2"></i>
+                  {progresoSubida > 0 ? `Subiendo comprobante (${progresoSubida}%)...` : 'Guardando ingreso...'}
+                </span>
               ) : (
                 <span>
                   <i className="fas fa-check-circle mr-1"></i>
@@ -1428,19 +1578,102 @@ export default function AddData() {
                     ></textarea>
                   </div>
 
-                  <div>
-                    <label className="etiqueta-campo-finanzia">Adjuntar comprobante o ticket</label>
+                  <div className={`contenedor-adjunto-comprobante ${archivoComprobanteGasto ? 'con-archivo' : ''}`}>
+                    <label className="etiqueta-campo-finanzia d-flex justify-content-between align-items-center mb-1">
+                      <span>
+                        <i className="fas fa-file-invoice mr-1" style={{ color: '#F46F5F' }}></i>
+                        Adjuntar comprobante o ticket
+                      </span>
+                      <span style={{ fontSize: '0.72rem', color: '#8E92A4', fontWeight: 600 }}>Opcional</span>
+                    </label>
+
+                    {/* Inputs de archivo ocultos (Cámara directa vs Galería para Egresos) */}
                     <input
                       type="file"
-                      accept="image/*,.pdf"
-                      className="campo-formulario-finanzia"
-                      onChange={manejarCambioArchivoGasto}
-                      style={{ padding: '6px 10px' }}
+                      ref={refInputCamaraGasto}
+                      accept="image/*"
+                      capture="environment"
+                      style={{ display: 'none' }}
+                      onChange={(e) => manejarSeleccionComprobante(e, true)}
                     />
-                    {archivoComprobanteGasto && (
-                      <span style={{ fontSize: '0.74rem', color: '#10B981', fontWeight: 600 }}>
-                        <i className="fas fa-check mr-1"></i> Archivo: {archivoComprobanteGasto.name}
-                      </span>
+                    <input
+                      type="file"
+                      ref={refInputGaleriaGasto}
+                      accept="image/*,.pdf"
+                      style={{ display: 'none' }}
+                      onChange={(e) => manejarSeleccionComprobante(e, true)}
+                    />
+
+                    {!archivoComprobanteGasto ? (
+                      <div>
+                        <div className="botones-seleccion-comprobante">
+                          <button
+                            type="button"
+                            className="boton-opcion-foto"
+                            onClick={() => refInputCamaraGasto.current && refInputCamaraGasto.current.click()}
+                          >
+                            <i className="fas fa-camera" style={{ color: '#F46F5F' }}></i>
+                            <span>Tomar foto</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="boton-opcion-foto"
+                            onClick={() => refInputGaleriaGasto.current && refInputGaleriaGasto.current.click()}
+                          >
+                            <i className="fas fa-images" style={{ color: '#4E44EB' }}></i>
+                            <span>Elegir galería</span>
+                          </button>
+                        </div>
+                        <span style={{ fontSize: '0.72rem', color: '#8E92A4', display: 'block', marginTop: '6px', textAlign: 'center' }}>
+                          <i className="fas fa-magic mr-1" style={{ color: '#F46F5F' }}></i>
+                          Optimizado y comprimido automáticamente en Cloudinary
+                        </span>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="tarjeta-preview-ticket">
+                          {urlVistaPreviaGasto && (
+                            <img
+                              src={urlVistaPreviaGasto}
+                              alt="Vista previa ticket gasto"
+                              className="miniatura-preview-ticket"
+                              onClick={() => window.open(urlVistaPreviaGasto, '_blank')}
+                              title="Toca para ver tamaño completo"
+                            />
+                          )}
+                          <div className="info-preview-ticket">
+                            <span className="nombre-preview-ticket">{archivoComprobanteGasto.name}</span>
+                            <span className="badge-peso-ticket" style={{ color: '#F46F5F', background: '#FFF1F2' }}>
+                              <i className="fas fa-check-circle mr-1"></i>
+                              Listo para subir ({formatearTamanioArchivo(archivoComprobanteGasto.size)})
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            className="boton-quitar-ticket"
+                            onClick={() => quitarComprobante(true)}
+                            title="Quitar foto seleccionada"
+                          >
+                            <i className="fas fa-trash-alt"></i>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Barra de progreso de subida activa */}
+                    {guardando && progresoSubida > 0 && (
+                      <div className="contenedor-progreso-subida">
+                        <div className="cabecera-progreso-subida">
+                          <span>{estadoSubidaTexto || 'Subiendo comprobante...'}</span>
+                          <span>{progresoSubida}%</span>
+                        </div>
+                        <div className="barra-fondo-progreso">
+                          <div
+                            className="barra-relleno-progreso"
+                            style={{ width: `${progresoSubida}%`, background: 'linear-gradient(90deg, #FF6584 0%, #F46F5F 100%)' }}
+                          ></div>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -1455,7 +1688,10 @@ export default function AddData() {
               disabled={guardando}
             >
               {guardando ? (
-                <span><i className="fas fa-spinner fa-spin mr-2"></i> Guardando gasto...</span>
+                <span>
+                  <i className="fas fa-spinner fa-spin mr-2"></i>
+                  {progresoSubida > 0 ? `Subiendo comprobante (${progresoSubida}%)...` : 'Guardando gasto...'}
+                </span>
               ) : (
                 <span>
                   <i className="fas fa-fire mr-1"></i>

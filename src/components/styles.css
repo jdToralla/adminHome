@@ -2349,4 +2349,161 @@
   margin-left: auto;
 }
 
+/* =============================================================== */
+/* ADJUNCIÓN DE COMPROBANTES / TICKETS (Cloudinary Mobile UX)       */
+/* =============================================================== */
+.contenedor-adjunto-comprobante {
+  background: #F8F9FD;
+  border: 1.5px dashed #D2D5E8;
+  border-radius: 16px;
+  padding: 14px;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.contenedor-adjunto-comprobante.con-archivo {
+  border-style: solid;
+  border-color: #10B981;
+  background: #F0FDF4;
+}
+
+.botones-seleccion-comprobante {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.boton-opcion-foto {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #E2E4F0;
+  background: #FFFFFF;
+  color: #1E1F30;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+}
+.boton-opcion-foto:hover {
+  background: #EEF2FF;
+  border-color: #4E44EB;
+  color: #4E44EB;
+}
+.boton-opcion-foto i {
+  font-size: 1rem;
+}
+
+.tarjeta-preview-ticket {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #FFFFFF;
+  border-radius: 12px;
+  padding: 8px 10px;
+  border: 1px solid #E2E8F0;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+.miniatura-preview-ticket {
+  width: 52px;
+  height: 52px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid #CBD5E1;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.info-preview-ticket {
+  flex: 1;
+  min-width: 0;
+}
+.nombre-preview-ticket {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #1E1F30;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+.badge-peso-ticket {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #10B981;
+  background: #ECFDF5;
+  padding: 2px 6px;
+  border-radius: 6px;
+  display: inline-block;
+  margin-top: 2px;
+}
+.boton-quitar-ticket {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: #FEE2E2;
+  color: #EF4444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+  transition: background 0.2s ease;
+}
+.boton-quitar-ticket:hover {
+  background: #EF4444;
+  color: #FFFFFF;
+}
+
+/* Barra de progreso de subida */
+.contenedor-progreso-subida {
+  background: #FFFFFF;
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin-top: 10px;
+  border: 1px solid #E0E7FF;
+  box-shadow: 0 2px 10px rgba(78, 68, 235, 0.08);
+}
+.cabecera-progreso-subida {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #4E44EB;
+  margin-bottom: 6px;
+}
+.barra-fondo-progreso {
+  width: 100%;
+  height: 8px;
+  background: #EEF2FF;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.barra-relleno-progreso {
+  height: 100%;
+  background: linear-gradient(90deg, #4E44EB 0%, #10B981 100%);
+  border-radius: 6px;
+  transition: width 0.25s ease;
+}
+
+/* Badge en lista de transacciones */
+.badge-ticket-adjunto {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #4E44EB;
+  background: #EEF2FF;
+  padding: 2px 6px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+
 
