@@ -32,12 +32,14 @@ export default function Home() {
 
   // Estados de datos
   const [cargando, setCargando] = useState(true);
+  const [todosLosMovimientos, setTodosLosMovimientos] = useState([]);
   const [ultimosMovimientos, setUltimosMovimientos] = useState([]);
   const [estadisticasMes, setEstadisticasMes] = useState(null);
   const [saldoHistoricoTotal, setSaldoHistoricoTotal] = useState(0);
   const [movimientoSeleccionado, setMovimientoSeleccionado] = useState(null);
   const [mostrarModalDetalle, setMostrarModalDetalle] = useState(false);
   const [modalImagenGrande, setModalImagenGrande] = useState(null);
+  const [metasAhorro] = useState([]);
 
   // Períodos disponibles: 'mes' | 'ultimo_mes' | '3_meses' | '6_meses' | 'anio' | 'personalizado'
   // eslint-disable-next-line no-unused-vars
@@ -112,22 +114,22 @@ export default function Home() {
         console.warn('No se pudo leer aggregatedStats (posible cuenta legacy):', eStats);
       }
 
-      // 2. Consulta de los últimos 4 movimientos para la vista previa (Solo 4 lecturas)
-      const snapshotMovimientos = await firedb
+      // 2. Consulta optimizada de los movimientos del usuario en Firestore (hasta 100 registros)
+      const snapshotTotales = await firedb
         .collection('caja-chica')
         .where('idUser', '==', uidNormalizado)
         .orderBy('fecha', 'desc')
-        .limit(4)
+        .limit(100)
         .get();
 
-      let itemsPrevios = snapshotMovimientos.docs.map(doc => ({
+      let itemsTotales = snapshotTotales.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
 
       // Sincronización inteligente de comprobantes para movimientos recientes
       try {
-        const sinAdjunto = itemsPrevios.filter(r => !r.attachmentUrl && !r.urlComprobante);
+        const sinAdjunto = itemsTotales.slice(0, 10).filter(r => !r.attachmentUrl && !r.urlComprobante);
         if (sinAdjunto.length > 0 && idUsuario) {
           const authUser = auth.currentUser;
           const uidEfectivo = (authUser && authUser.uid) ? authUser.uid : idUsuario.toString();
@@ -156,14 +158,14 @@ export default function Home() {
           }
 
           if (Object.keys(mapaAdjuntos).length > 0) {
-            itemsPrevios = itemsPrevios.map(reg => {
+            itemsTotales = itemsTotales.map(reg => {
               if (!reg.attachmentUrl && !reg.urlComprobante) {
                 const llave = `${reg.fecha}_${reg.cantidad}`;
                 const urlEncontrada = mapaAdjuntos[llave];
                 if (urlEncontrada) {
                   firedb.collection('caja-chica').doc(reg.id).update({
                     attachmentUrl: urlEncontrada
-                  }).catch(() => {});
+                  }).catch(() => { });
                   return { ...reg, attachmentUrl: urlEncontrada };
                 }
               }
@@ -175,27 +177,18 @@ export default function Home() {
         console.warn('Fallback sync comprobantes en Home:', errSync);
       }
 
-      setUltimosMovimientos(itemsPrevios);
+      setTodosLosMovimientos(itemsTotales);
+      setUltimosMovimientos(itemsTotales.slice(0, 4));
 
-      // 3. Cálculo de balance histórico acumulado (optimizado con caché o fallback)
-      if (snapshotMovimientos.docs.length > 0) {
-        // Obtenemos los totales rápidos de caja chica para asegurar consistencia
-        const snapshotTotales = await firedb
-          .collection('caja-chica')
-          .where('idUser', '==', uidNormalizado)
-          .get();
-
-        let totalIngresos = 0;
-        let totalEgresos = 0;
-        snapshotTotales.docs.forEach(doc => {
-          const d = doc.data();
-          const cant = parseFloat(d.cantidad) || 0;
-          if (d.tipo === 2) totalIngresos += cant;
-          else if (d.tipo === 1) totalEgresos += cant;
-        });
-
-        setSaldoHistoricoTotal(totalIngresos - totalEgresos);
-      }
+      // 3. Balance acumulado total real
+      let totalIngresos = 0;
+      let totalEgresos = 0;
+      itemsTotales.forEach(doc => {
+        const cant = parseFloat(doc.cantidad || doc.amount) || 0;
+        if (doc.tipo === 2) totalIngresos += cant;
+        else if (doc.tipo === 1) totalEgresos += cant;
+      });
+      setSaldoHistoricoTotal(totalIngresos - totalEgresos);
     } catch (error) {
       console.error('Error al cargar datos del Home:', error);
     } finally {
@@ -214,7 +207,7 @@ export default function Home() {
   };
 
   // ---------------------------------------------------------------------------
-  // CÁLCULO DE KPIS SEGÚN EL PERÍODO SELECCIONADO
+  // CÁLCULO DE KPIS SEGÚN EL PERÍODO SELECCIONADO (100% DINÁMICO)
   // ---------------------------------------------------------------------------
   const kpisCalculados = useMemo(() => {
     // Si tenemos agregados mensuales precalculados de Firestore:
@@ -227,16 +220,15 @@ export default function Home() {
         ingresos,
         egresos,
         ahorro,
-        tasaAhorro,
-        variacion: '+12.4%'
+        tasaAhorro
       };
     }
 
-    // Fallback: cálculo con los datos actuales
+    // Cálculo con los movimientos reales
     let ingresos = 0;
     let egresos = 0;
-    ultimosMovimientos.forEach(m => {
-      const cant = parseFloat(m.cantidad) || 0;
+    todosLosMovimientos.forEach(m => {
+      const cant = parseFloat(m.cantidad || m.amount) || 0;
       if (m.tipo === 2) ingresos += cant;
       else if (m.tipo === 1) egresos += cant;
     });
@@ -247,55 +239,59 @@ export default function Home() {
       ingresos,
       egresos,
       ahorro,
-      tasaAhorro,
-      variacion: '+8.5%'
+      tasaAhorro
     };
-  }, [estadisticasMes, ultimosMovimientos]);
+  }, [estadisticasMes, todosLosMovimientos]);
 
-  // Flujo de efectivo agrupado por días de la semana
+  // Fechas correspondientes a los días de la semana en curso (Lunes a Domingo)
+  const diasSemanaFechas = useMemo(() => {
+    const ahora = new Date();
+    const diaActual = ahora.getDay();
+    const distanciaAlLunes = diaActual === 0 ? -6 : 1 - diaActual;
+    const lunes = new Date(ahora);
+    lunes.setDate(ahora.getDate() + distanciaAlLunes);
+
+    return DIAS_SEMANA.map((dia, idx) => {
+      const fechaDia = new Date(lunes);
+      fechaDia.setDate(lunes.getDate() + idx);
+      const anio = fechaDia.getFullYear();
+      const mes = String(fechaDia.getMonth() + 1).padStart(2, '0');
+      const d = String(fechaDia.getDate()).padStart(2, '0');
+      return {
+        dia,
+        fechaStr: `${anio}-${mes}-${d}`
+      };
+    });
+  }, []);
+
+  // Flujo de efectivo agrupado por días de la semana con DATOS REALES (sin datos quemados)
   const flujoSemanalDias = useMemo(() => {
-    const mapaDias = DIAS_SEMANA.map((dia, idx) => ({
-      dia,
-      indice: idx,
-      ingresos: 0,
-      egresos: 0
-    }));
+    return diasSemanaFechas.map(({ dia, fechaStr }, idx) => {
+      let ingresos = 0;
+      let egresos = 0;
 
-    // Si existen movimientos en memoria, los agrupamos por día de la semana
-    if (ultimosMovimientos.length > 0) {
-      ultimosMovimientos.forEach(mov => {
-        if (!mov.fecha) return;
-        const partes = mov.fecha.split('-').map(Number);
-        if (partes.length === 3) {
-          const fechaObj = new Date(partes[0], partes[1] - 1, partes[2]);
-          const diaJs = fechaObj.getDay(); // 0: Domingo, 1: Lunes...
-          const indiceSemana = diaJs === 0 ? 6 : diaJs - 1; // 0: Lun ... 6: Dom
-          const cant = parseFloat(mov.cantidad) || 0;
-          if (mov.tipo === 2) {
-            mapaDias[indiceSemana].ingresos += cant;
-          } else if (mov.tipo === 1) {
-            mapaDias[indiceSemana].egresos += cant;
-          }
+      todosLosMovimientos.forEach(mov => {
+        if (mov.fecha === fechaStr) {
+          const cant = parseFloat(mov.cantidad || mov.amount) || 0;
+          if (mov.tipo === 2) ingresos += cant;
+          else if (mov.tipo === 1) egresos += cant;
         }
       });
-    }
 
-    // Si aún no hay movimientos en la semana, usamos datos proporcionales equilibrados
-    const totalRegistrado = mapaDias.reduce((acc, d) => acc + d.ingresos + d.egresos, 0);
-    if (totalRegistrado === 0) {
-      return [
-        { dia: 'Lun', ingresos: 650, egresos: 180 },
-        { dia: 'Mar', ingresos: 220, egresos: 350 },
-        { dia: 'Mié', ingresos: 880, egresos: 240 },
-        { dia: 'Jue', ingresos: 320, egresos: 490 },
-        { dia: 'Vie', ingresos: 1200, egresos: 680 },
-        { dia: 'Sáb', ingresos: 250, egresos: 720 },
-        { dia: 'Dom', ingresos: 150, egresos: 290 }
-      ];
-    }
+      return {
+        dia,
+        fechaStr,
+        indice: idx,
+        ingresos,
+        egresos
+      };
+    });
+  }, [diasSemanaFechas, todosLosMovimientos]);
 
-    return mapaDias;
-  }, [ultimosMovimientos]);
+  // Indicador de si existen movimientos registrados en la semana en curso
+  const hayDatosFlujoSemanal = useMemo(() => {
+    return flujoSemanalDias.some(d => d.ingresos > 0 || d.egresos > 0);
+  }, [flujoSemanalDias]);
 
   // Totales y balance neto del flujo semanal
   const estadisticasFlujoSemanal = useMemo(() => {
@@ -319,64 +315,93 @@ export default function Home() {
     };
   }, [flujoSemanalDias]);
 
-  // Desglose de categorías de gasto para el gráfico de barras horizontales
+  // Desglose de categorías de gasto para el gráfico (100% dinámico, sin datos quemados)
   const desgloseCategorias = useMemo(() => {
+    // 1. Si hay agregados mensuales precalculados
     if (estadisticasMes && estadisticasMes.expenseCategoryBreakdown) {
       const breakdown = estadisticasMes.expenseCategoryBreakdown;
       const totalGastos = estadisticasMes.totalExpense || 1;
-      return Object.entries(breakdown).map(([nombre, monto]) => ({
-        nombre,
-        monto,
-        porcentaje: Math.min(100, Math.round((monto / totalGastos) * 100))
-      })).sort((a, b) => b.monto - a.monto);
+      const categorias = Object.entries(breakdown)
+        .filter(([, monto]) => monto > 0)
+        .map(([nombre, monto]) => {
+          const meta = getCategoryMeta(nombre, 1);
+          return {
+            nombre,
+            monto,
+            porcentaje: Math.min(100, Math.round((monto / totalGastos) * 100)),
+            color: meta.color || '#4E44EB',
+            icono: meta.icon || 'fas fa-tag'
+          };
+        })
+        .sort((a, b) => b.monto - a.monto);
+
+      if (categorias.length > 0) return categorias;
     }
 
-    // Datos ilustrativos basados en las categorías principales de egresos
-    return [
-      { nombre: 'Alimentación', monto: 1750.00, porcentaje: 42, color: '#FF6B6B', icono: 'fas fa-utensils' },
-      { nombre: 'Transporte', monto: 1050.00, porcentaje: 25, color: '#4D96FF', icono: 'fas fa-car' },
-      { nombre: 'Vivienda', monto: 850.00, porcentaje: 20, color: '#6BCB77', icono: 'fas fa-home' },
-      { nombre: 'Servicios', monto: 536.50, porcentaje: 13, color: '#FFD93D', icono: 'fas fa-bolt' }
-    ];
-  }, [estadisticasMes]);
-
-  // Metas de ahorro configuradas
-  const metasAhorro = [
-    {
-      titulo: 'Fondo de Emergencia',
-      actual: 15000,
-      objetivo: 25000,
-      porcentaje: 60,
-      icono: 'fas fa-shield-alt',
-      color: '#4E44EB'
-    },
-    {
-      titulo: 'Vacaciones Fin de Año',
-      actual: 4200,
-      objetivo: 8000,
-      porcentaje: 52,
-      icono: 'fas fa-umbrella-beach',
-      color: '#FF8E6E'
+    // 2. Calcular a partir de los egresos reales en todosLosMovimientos
+    const egresosReales = todosLosMovimientos.filter(m => m.tipo === 1);
+    if (egresosReales.length === 0) {
+      return []; // RETORNA VACÍO PARA MOSTRAR EMPTY STATE
     }
-  ];
 
-  // Próximos pagos y vencimientos
-  const proximosPagos = [
-    {
-      concepto: 'Internet Fibra Óptica',
-      monto: 389.00,
-      fechaVencimiento: 'Vence en 3 días (05 Nov)',
-      icono: 'fas fa-wifi',
-      color: '#4E44EB'
-    },
-    {
-      concepto: 'Tarjeta BAC Credomatic',
-      monto: 650.00,
-      fechaVencimiento: 'Corte en 7 días (09 Nov)',
-      icono: 'fas fa-credit-card',
-      color: '#F46F5F'
-    }
-  ];
+    const acumulador = {};
+    let totalMonto = 0;
+
+    egresosReales.forEach(g => {
+      const cat = g.categoria || g.category || 'Otros';
+      const cant = parseFloat(g.cantidad || g.amount) || 0;
+      acumulador[cat] = (acumulador[cat] || 0) + cant;
+      totalMonto += cant;
+    });
+
+    if (totalMonto === 0) return [];
+
+    return Object.entries(acumulador)
+      .map(([nombre, monto]) => {
+        const meta = getCategoryMeta(nombre, 1);
+        return {
+          nombre,
+          monto,
+          porcentaje: Math.min(100, Math.round((monto / totalMonto) * 100)),
+          color: meta.color || '#4E44EB',
+          icono: meta.icon || 'fas fa-tag'
+        };
+      })
+      .sort((a, b) => b.monto - a.monto);
+  }, [estadisticasMes, todosLosMovimientos]);
+
+  // Próximos pagos calculados dinámicamente de los movimientos reales (sin datos quemados)
+  const proximosPagos = useMemo(() => {
+    return todosLosMovimientos
+      .filter(m => {
+        const tieneVencimiento = Boolean(m.vencimientoGasto || m.dueDate);
+        const esPendiente = m.estado === 'Pendiente' || m.status === 'Pendiente';
+        const tieneCuotasPendientes = m.cuotas && m.cuotas > 1;
+        return (tieneVencimiento || esPendiente || tieneCuotasPendientes) && m.tipo === 1;
+      })
+      .slice(0, 4)
+      .map(m => {
+        const meta = getCategoryMeta(m.descripcion || m.categoria, 1);
+        const montoNum = parseFloat(m.cantidad || m.amount) || 0;
+        let textoVencimiento = 'Pendiente de pago';
+        if (m.vencimientoGasto || m.dueDate) {
+          textoVencimiento = `Vence: ${m.vencimientoGasto || m.dueDate}`;
+        } else if (m.diaPago) {
+          textoVencimiento = `Día de pago: ${m.diaPago}`;
+        } else if (m.cuotas && m.cuotas > 1) {
+          textoVencimiento = `${m.cuotas} cuotas pendientes`;
+        }
+
+        return {
+          id: m.id,
+          concepto: m.descripcion || m.comercio || m.categoria || 'Gasto pendiente',
+          monto: montoNum,
+          fechaVencimiento: textoVencimiento,
+          icono: meta.icon || 'fas fa-calendar-check',
+          color: meta.color || '#F46F5F'
+        };
+      });
+  }, [todosLosMovimientos]);
 
   return (
     <div className="container" style={{ paddingTop: '16px', paddingBottom: '90px', maxWidth: '640px' }}>
@@ -552,50 +577,64 @@ export default function Home() {
           </span>
         </div>
 
-        {/* Gráfico de barras duales de Lun a Dom */}
-        <div className="grafico-barras-semanal">
-          {flujoSemanalDias.map((d, idx) => {
-            const alturaIngreso = Math.max(6, Math.round((d.ingresos / estadisticasFlujoSemanal.maxValor) * 100));
-            const alturaGasto = Math.max(6, Math.round((d.egresos / estadisticasFlujoSemanal.maxValor) * 100));
-            const hoyJs = new Date().getDay();
-            const esHoy = (hoyJs === 0 ? 6 : hoyJs - 1) === idx;
+        {/* Gráfico de barras duales de Lun a Dom o Empty State */}
+        {!hayDatosFlujoSemanal ? (
+          <div className="text-center py-4 px-3">
+            <div style={{ fontSize: '2.2rem', marginBottom: '8px' }}>📊</div>
+            <h6 style={{ fontWeight: 700, color: '#1E1F30', fontSize: '0.92rem', marginBottom: '4px' }}>
+              Sin flujo registrado esta semana
+            </h6>
+            <p className="text-muted mb-0" style={{ fontSize: '0.78rem' }}>
+              Tus ingresos y gastos por día (Lun a Dom) se graficarán automáticamente aquí a medida que agregues transacciones.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="grafico-barras-semanal">
+              {flujoSemanalDias.map((d, idx) => {
+                const alturaIngreso = Math.max(6, Math.round((d.ingresos / estadisticasFlujoSemanal.maxValor) * 100));
+                const alturaGasto = Math.max(6, Math.round((d.egresos / estadisticasFlujoSemanal.maxValor) * 100));
+                const hoyJs = new Date().getDay();
+                const esHoy = (hoyJs === 0 ? 6 : hoyJs - 1) === idx;
 
-            return (
-              <div key={d.dia} className="columna-dia-semana">
-                <div className="par-barras-dia">
-                  {/* Barra de Ingreso */}
-                  <div
-                    className="barra-ingreso-dia"
-                    style={{ height: `${alturaIngreso}%` }}
-                    title={`${d.dia} - Ingresos: Q ${d.ingresos.toFixed(2)}`}
-                  ></div>
-                  {/* Barra de Gasto */}
-                  <div
-                    className="barra-gasto-dia"
-                    style={{ height: `${alturaGasto}%` }}
-                    title={`${d.dia} - Gastos: Q ${d.egresos.toFixed(2)}`}
-                  ></div>
-                </div>
-                <span className={`etiqueta-dia-semana ${esHoy ? 'hoy' : ''}`}>
-                  {d.dia}
+                return (
+                  <div key={d.dia} className="columna-dia-semana">
+                    <div className="par-barras-dia">
+                      {/* Barra de Ingreso */}
+                      <div
+                        className="barra-ingreso-dia"
+                        style={{ height: `${alturaIngreso}%` }}
+                        title={`${d.dia} - Ingresos: Q ${d.ingresos.toFixed(2)}`}
+                      ></div>
+                      {/* Barra de Gasto */}
+                      <div
+                        className="barra-gasto-dia"
+                        style={{ height: `${alturaGasto}%` }}
+                        title={`${d.dia} - Gastos: Q ${d.egresos.toFixed(2)}`}
+                      ></div>
+                    </div>
+                    <span className={`etiqueta-dia-semana ${esHoy ? 'hoy' : ''}`}>
+                      {d.dia}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
+              <div className="d-flex gap-3">
+                <span style={{ fontSize: '0.74rem', color: '#4E44EB', fontWeight: 700 }}>
+                  <span style={{ display: 'inline-block', width: '8px', height: '8px', background: '#4E44EB', borderRadius: '50%', marginRight: '5px' }}></span>
+                  Ingresos
+                </span>
+                <span style={{ fontSize: '0.74rem', color: '#F46F5F', fontWeight: 700, marginLeft: '10px' }}>
+                  <span style={{ display: 'inline-block', width: '8px', height: '8px', background: '#F46F5F', borderRadius: '50%', marginRight: '5px' }}></span>
+                  Gastos
                 </span>
               </div>
-            );
-          })}
-        </div>
-
-        <div className="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
-          <div className="d-flex gap-3">
-            <span style={{ fontSize: '0.74rem', color: '#4E44EB', fontWeight: 700 }}>
-              <span style={{ display: 'inline-block', width: '8px', height: '8px', background: '#4E44EB', borderRadius: '50%', marginRight: '5px' }}></span>
-              Ingresos
-            </span>
-            <span style={{ fontSize: '0.74rem', color: '#F46F5F', fontWeight: 700, marginLeft: '10px' }}>
-              <span style={{ display: 'inline-block', width: '8px', height: '8px', background: '#F46F5F', borderRadius: '50%', marginRight: '5px' }}></span>
-              Gastos
-            </span>
-          </div>
-        </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* =============================================================== */}
@@ -612,25 +651,40 @@ export default function Home() {
           </span>
         </div>
 
-        <div>
-          {desgloseCategorias.map((cat, idx) => (
-            <div key={idx} className="fila-categoria-progreso">
-              <div className="categoria-info-linea">
-                <span>{cat.nombre}</span>
-                <span>Q {cat.monto.toFixed(2)} ({cat.porcentaje}%)</span>
+        {desgloseCategorias.length === 0 ? (
+          <div className="text-center py-4 px-3">
+            <div style={{ fontSize: '2.2rem', marginBottom: '8px' }}>🏷️</div>
+            <h6 style={{ fontWeight: 700, color: '#1E1F30', fontSize: '0.92rem', marginBottom: '4px' }}>
+              Sin gastos registrados
+            </h6>
+            <p className="text-muted mb-0" style={{ fontSize: '0.78rem' }}>
+              Registra tus primeros egresos para ver la distribución y desglose de gastos por categoría.
+            </p>
+          </div>
+        ) : (
+          <div>
+            {desgloseCategorias.map((cat, idx) => (
+              <div key={idx} className="fila-categoria-progreso">
+                <div className="categoria-info-linea">
+                  <span>
+                    <i className={`${cat.icono || 'fas fa-tag'} mr-2`} style={{ color: cat.color }}></i>
+                    {cat.nombre}
+                  </span>
+                  <span>Q {cat.monto.toFixed(2)} ({cat.porcentaje}%)</span>
+                </div>
+                <div className="barra-progreso-fondo">
+                  <div
+                    className="barra-progreso-relleno"
+                    style={{
+                      width: `${cat.porcentaje}%`,
+                      background: cat.color || '#4E44EB'
+                    }}
+                  ></div>
+                </div>
               </div>
-              <div className="barra-progreso-fondo">
-                <div
-                  className="barra-progreso-relleno"
-                  style={{
-                    width: `${cat.porcentaje}%`,
-                    background: cat.color || '#4E44EB'
-                  }}
-                ></div>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* =============================================================== */}
@@ -643,35 +697,47 @@ export default function Home() {
             Metas de Ahorro
           </span>
           <span style={{ fontSize: '0.72rem', color: '#10B981', fontWeight: 700 }}>
-            Activas
+            {metasAhorro.length > 0 ? 'Activas' : 'Objetivos'}
           </span>
         </div>
 
-        <div>
-          {metasAhorro.map((meta, idx) => (
-            <div key={idx} className="tarjeta-meta-ahorro-item">
-              <div className="d-flex justify-content-between align-items-center mb-1">
-                <strong style={{ fontSize: '0.82rem', color: '#1E1F30' }}>
-                  <i className={`${meta.icono} mr-1`} style={{ color: meta.color }}></i>
-                  {meta.titulo}
-                </strong>
-                <span style={{ fontSize: '0.76rem', fontWeight: 800, color: meta.color }}>
-                  {meta.porcentaje}%
-                </span>
+        {metasAhorro.length === 0 ? (
+          <div className="text-center py-4 px-3">
+            <div style={{ fontSize: '2.2rem', marginBottom: '8px' }}>🎯</div>
+            <h6 style={{ fontWeight: 700, color: '#1E1F30', fontSize: '0.92rem', marginBottom: '4px' }}>
+              Sin metas de ahorro activas
+            </h6>
+            <p className="text-muted mb-0" style={{ fontSize: '0.78rem' }}>
+              Próximamente podrás definir tus metas financieras para monitorear tu progreso de ahorro.
+            </p>
+          </div>
+        ) : (
+          <div>
+            {metasAhorro.map((meta, idx) => (
+              <div key={idx} className="tarjeta-meta-ahorro-item">
+                <div className="d-flex justify-content-between align-items-center mb-1">
+                  <strong style={{ fontSize: '0.82rem', color: '#1E1F30' }}>
+                    <i className={`${meta.icono} mr-1`} style={{ color: meta.color }}></i>
+                    {meta.titulo}
+                  </strong>
+                  <span style={{ fontSize: '0.76rem', fontWeight: 800, color: meta.color }}>
+                    {meta.porcentaje}%
+                  </span>
+                </div>
+                <div className="barra-progreso-fondo mb-1">
+                  <div
+                    className="barra-progreso-relleno"
+                    style={{ width: `${meta.porcentaje}%`, background: meta.color }}
+                  ></div>
+                </div>
+                <div className="d-flex justify-content-between" style={{ fontSize: '0.72rem', color: '#8E92A4' }}>
+                  <span>Ahorrado: Q {meta.actual.toLocaleString()}</span>
+                  <span>Meta: Q {meta.objetivo.toLocaleString()}</span>
+                </div>
               </div>
-              <div className="barra-progreso-fondo mb-1">
-                <div
-                  className="barra-progreso-relleno"
-                  style={{ width: `${meta.porcentaje}%`, background: meta.color }}
-                ></div>
-              </div>
-              <div className="d-flex justify-content-between" style={{ fontSize: '0.72rem', color: '#8E92A4' }}>
-                <span>Ahorrado: Q {meta.actual.toLocaleString()}</span>
-                <span>Meta: Q {meta.objetivo.toLocaleString()}</span>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* =============================================================== */}
@@ -684,44 +750,56 @@ export default function Home() {
             Próximos Pagos
           </span>
           <span style={{ fontSize: '0.72rem', color: '#F46F5F', fontWeight: 700 }}>
-            Pendientes
+            {proximosPagos.length > 0 ? 'Pendientes' : 'Al día'}
           </span>
         </div>
 
-        <div>
-          {proximosPagos.map((pago, idx) => (
-            <div key={idx} className="tarjeta-proximo-pago-item">
-              <div className="d-flex align-items-center gap-2">
-                <div
-                  style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '10px',
-                    background: '#FFFFFF',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: pago.color,
-                    boxShadow: '0 2px 6px rgba(0,0,0,0.04)'
-                  }}
-                >
-                  <i className={pago.icono}></i>
+        {proximosPagos.length === 0 ? (
+          <div className="text-center py-4 px-3">
+            <div style={{ fontSize: '2.2rem', marginBottom: '8px' }}>🎉</div>
+            <h6 style={{ fontWeight: 700, color: '#1E1F30', fontSize: '0.92rem', marginBottom: '4px' }}>
+              Todo al día
+            </h6>
+            <p className="text-muted mb-0" style={{ fontSize: '0.78rem' }}>
+              No tienes cuentas por pagar ni vencimientos próximos registrados.
+            </p>
+          </div>
+        ) : (
+          <div>
+            {proximosPagos.map((pago, idx) => (
+              <div key={idx} className="tarjeta-proximo-pago-item">
+                <div className="d-flex align-items-center gap-2">
+                  <div
+                    style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '10px',
+                      background: '#FFFFFF',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: pago.color,
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.04)'
+                    }}
+                  >
+                    <i className={pago.icono}></i>
+                  </div>
+                  <div>
+                    <strong style={{ fontSize: '0.84rem', color: '#1E1F30', display: 'block' }}>
+                      {pago.concepto}
+                    </strong>
+                    <span style={{ fontSize: '0.72rem', color: '#8E92A4' }}>
+                      {pago.fechaVencimiento}
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <strong style={{ fontSize: '0.84rem', color: '#1E1F30', display: 'block' }}>
-                    {pago.concepto}
-                  </strong>
-                  <span style={{ fontSize: '0.72rem', color: '#8E92A4' }}>
-                    {pago.fechaVencimiento}
-                  </span>
-                </div>
+                <strong style={{ fontSize: '0.9rem', color: '#1E1F30' }}>
+                  Q {pago.monto.toFixed(2)}
+                </strong>
               </div>
-              <strong style={{ fontSize: '0.9rem', color: '#1E1F30' }}>
-                Q {pago.monto.toFixed(2)}
-              </strong>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* =============================================================== */}
@@ -744,9 +822,15 @@ export default function Home() {
         </div>
 
         {ultimosMovimientos.length === 0 ? (
-          <p className="text-muted text-center py-3" style={{ fontSize: '0.82rem' }}>
-            No hay transacciones recientes registradas.
-          </p>
+          <div className="text-center py-4 px-3 mb-2">
+            <div style={{ fontSize: '2.2rem', marginBottom: '8px' }}>💳</div>
+            <h6 style={{ fontWeight: 700, color: '#1E1F30', fontSize: '0.92rem', marginBottom: '4px' }}>
+              Sin transacciones recientes
+            </h6>
+            <p className="text-muted mb-0" style={{ fontSize: '0.78rem' }}>
+              Aún no has registrado movimientos. Toca en el botón central <strong>(+)</strong> para agregar tu primer ingreso o gasto.
+            </p>
+          </div>
         ) : (
           <div className="d-flex flex-column gap-2 mb-3">
             {ultimosMovimientos.map((item) => {
