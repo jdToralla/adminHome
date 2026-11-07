@@ -291,7 +291,7 @@ export default function Movimientos() {
   );
 
   return (
-    <div className="container pantalla-movimientos-contenedor" style={{ paddingTop: '20px', paddingBottom: '90px' }}>
+    <div className="container pantalla-movimientos-contenedor" style={{ paddingTop: '16px', paddingBottom: '90px', maxWidth: '640px' }}>
       
       {/* =============================================================== */}
       {/* ENCABEZADO SUPERIOR MINIMALISTA                                 */}
@@ -300,17 +300,18 @@ export default function Movimientos() {
         <div className="d-flex align-items-center gap-2">
           <button
             type="button"
-            className="btn btn-sm btn-light rounded-circle shadow-sm"
+            className="btn btn-sm btn-light shadow-sm rounded-circle d-flex align-items-center justify-content-center"
             onClick={() => historial.push('/home')}
             style={{ width: '38px', height: '38px' }}
+            title="Volver a Inicio"
           >
             <i className="fas fa-arrow-left text-dark"></i>
           </button>
           <div>
-            <h1 className="mb-0" style={{ fontSize: '1.35rem', fontWeight: 800, color: '#1E1F30' }}>
+            <h4 className="mb-0 font-weight-bold" style={{ fontSize: '1.25rem', color: '#1E1F30' }}>
               Movimientos
-            </h1>
-            <span style={{ fontSize: '0.76rem', color: '#8E92A4', fontWeight: 600 }}>
+            </h4>
+            <span style={{ fontSize: '0.74rem', color: '#8E92A4', fontWeight: 600 }}>
               {movimientosFiltrados.length} de {listaMovimientos.length} transacciones
             </span>
           </div>
@@ -318,13 +319,12 @@ export default function Movimientos() {
 
         <button
           type="button"
-          className="btn btn-sm btn-light shadow-sm d-flex align-items-center gap-1"
-          style={{ borderRadius: '12px', padding: '6px 12px', fontSize: '0.8rem', fontWeight: 700 }}
+          className="btn btn-sm btn-light shadow-sm rounded-circle d-flex align-items-center justify-content-center"
+          style={{ width: '38px', height: '38px' }}
           onClick={cargarMovimientos}
           title="Recargar movimientos"
         >
           <i className={`fas fa-sync-alt ${cargando ? 'fa-spin' : ''}`} style={{ color: '#4E44EB' }}></i>
-          <span className="d-none d-sm-inline">Actualizar</span>
         </button>
       </div>
 

@@ -91,22 +91,33 @@ export default function NewExpense() {
   };
 
   return (
-    <div className="container" style={{ paddingTop: '80px', paddingBottom: '60px' }}>
-      
-      {/* Back button */}
-      <div className="mb-4 d-flex align-items-center justify-content-between" style={{ maxWidth: '680px', margin: '0 auto' }}>
-        <button
-          className="segmented-pill-btn d-inline-flex align-items-center"
-          onClick={() => history.push('/home')}
-          style={{ padding: '8px 18px', background: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
-        >
-          <i className="fas fa-arrow-left mr-2" style={{ color: '#4E44EB' }}></i>
-          <span>Volver al Dashboard</span>
-        </button>
+    <div className="container" style={{ paddingTop: '16px', paddingBottom: '90px', maxWidth: '640px' }}>
+
+      {/* Encabezado superior estandarizado */}
+      <div className="d-flex align-items-center justify-content-between mb-3">
+        <div className="d-flex align-items-center gap-2">
+          <button
+            type="button"
+            className="btn btn-sm btn-light shadow-sm rounded-circle d-flex align-items-center justify-content-center"
+            style={{ width: '38px', height: '38px' }}
+            onClick={() => history.push('/home')}
+            title="Volver al Dashboard"
+          >
+            <i className="fas fa-arrow-left text-dark"></i>
+          </button>
+          <div>
+            <h4 className="mb-0 font-weight-bold" style={{ fontSize: '1.25rem', color: '#1E1F30' }}>
+              Nuevo Egreso
+            </h4>
+            <span style={{ fontSize: '0.74rem', color: '#8E92A4', fontWeight: 600 }}>
+              Formulario de gasto
+            </span>
+          </div>
+        </div>
       </div>
 
       <div className="form-card-container">
-        
+
         <div className="d-flex align-items-center gap-2 mb-3">
           <span className="form-header-badge badge-expense-type">
             <i className="fas fa-arrow-up mr-1"></i> Formulario de Egreso
@@ -118,7 +129,7 @@ export default function NewExpense() {
         </h3>
 
         <form onSubmit={handleSubmit}>
-          
+
           {/* Amount Hero Box */}
           <div className="amount-hero-input-wrapper">
             <div className="amount-hero-label">Monto del Gasto</div>

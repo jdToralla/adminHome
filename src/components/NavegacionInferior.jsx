@@ -65,7 +65,7 @@ export default function NavegacionInferior() {
       {/* =============================================================== */}
       <nav className="barra-navegacion-inferior">
         <div className="contenedor-items-barra-inferior">
-          
+
           {/* 1. INICIO */}
           <button
             type="button"
@@ -162,7 +162,7 @@ export default function NavegacionInferior() {
             {/* Botón Vibrante: Nuevo Gasto */}
             <button
               type="button"
-              className="boton-accion-modal-vibrante gasto"
+              className="boton-accion-modal-vibrante gasto mt-4"
               onClick={() => irANuevoMovimiento(1)}
             >
               <div className="icono-circulo-vibrante">
@@ -224,7 +224,7 @@ export default function NavegacionInferior() {
                 {nombreUsuario.charAt(0).toUpperCase()}
               </div>
             )}
-            <div>
+            <div className='mx-2'>
               <strong style={{ fontSize: '0.95rem', color: '#1E1F30', display: 'block' }}>
                 {nombreUsuario}
               </strong>

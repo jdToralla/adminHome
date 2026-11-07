@@ -691,22 +691,44 @@ export default function AddData() {
   const esModoIngreso = tipoMovimiento === 2;
 
   return (
-    <div className="container" style={{ paddingTop: '80px', paddingBottom: '70px' }}>
+    <div className="container" style={{ paddingTop: '16px', paddingBottom: '90px', maxWidth: '640px' }}>
       
-      {/* Botón superior de regreso al Dashboard */}
-      <div className="mb-3 d-flex align-items-center justify-content-between" style={{ maxWidth: '680px', margin: '0 auto' }}>
-        <button
-          className="segmented-pill-btn d-inline-flex align-items-center"
-          onClick={() => historial.push('/home')}
-          style={{ padding: '8px 16px', background: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
-        >
-          <i className="fas fa-arrow-left mr-2" style={{ color: '#4E44EB' }}></i>
-          <span>Volver al Dashboard</span>
-        </button>
+      {/* =============================================================== */}
+      {/* ENCABEZADO SUPERIOR ESTANDARIZADO                               */}
+      {/* =============================================================== */}
+      <div className="d-flex align-items-center justify-content-between mb-3">
+        <div className="d-flex align-items-center gap-2">
+          <button
+            type="button"
+            className="btn btn-sm btn-light shadow-sm rounded-circle d-flex align-items-center justify-content-center"
+            style={{ width: '38px', height: '38px' }}
+            onClick={() => historial.push('/home')}
+            title="Volver a Inicio"
+          >
+            <i className="fas fa-arrow-left text-dark"></i>
+          </button>
+          <div>
+            <h4 className="mb-0 font-weight-bold" style={{ fontSize: '1.25rem', color: '#1E1F30' }}>
+              {esModoIngreso ? 'Nuevo Ingreso' : 'Nuevo Egreso'}
+            </h4>
+            <span style={{ fontSize: '0.74rem', color: '#8E92A4', fontWeight: 600 }}>
+              {esModoIngreso ? 'Registro rápido de entrada' : 'Registro rápido de gasto'}
+            </span>
+          </div>
+        </div>
 
-        <span style={{ fontSize: '0.82rem', color: '#8E92A4', fontWeight: 600 }}>
-          Finanzia &bull; Captura Rápida
-        </span>
+        <button
+          type="button"
+          className="btn btn-sm btn-light shadow-sm rounded-circle d-flex align-items-center justify-content-center"
+          style={{ width: '38px', height: '38px' }}
+          onClick={() => {
+            setMonto('');
+            setDescripcion('');
+          }}
+          title="Reiniciar formulario"
+        >
+          <i className="fas fa-redo-alt" style={{ color: '#4E44EB' }}></i>
+        </button>
       </div>
 
       <div className="modulo-ingreso-contenedor">
