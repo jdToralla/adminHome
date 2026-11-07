@@ -490,7 +490,7 @@ export default function Home() {
         <div className="widget-titulo-seccion">
           <span>
             <i className="fas fa-chart-bar mr-2" style={{ color: '#4E44EB' }}></i>
-            Ingresos vs Gastos
+            Ingresos vs Gastos Semanales
           </span>
           <span
             className={`badge-diferencia-flujo ${estadisticasFlujoSemanal.diferencia >= 0 ? 'superavit' : 'deficit'}`}
@@ -773,9 +773,24 @@ export default function Home() {
         dialogClassName="modal-bottom-sheet-dialog"
       >
         {movimientoSeleccionado && (() => {
-          const meta = getCategoryMeta(movimientoSeleccionado.descripcion, movimientoSeleccionado.tipo);
+          const meta = getCategoryMeta(movimientoSeleccionado.descripcion || movimientoSeleccionado.description, movimientoSeleccionado.tipo);
           const esIngreso = movimientoSeleccionado.tipo === 2;
-          const cantidadNum = parseFloat(movimientoSeleccionado.cantidad) || 0;
+          const cantidadNum = parseFloat(movimientoSeleccionado.cantidad || movimientoSeleccionado.amount) || 0;
+
+          // Extracción inteligente de propiedades
+          const cuentaTexto = movimientoSeleccionado.cuentaOrigen || movimientoSeleccionado.cuentaDestino || movimientoSeleccionado.account;
+          const metodoPagoTexto = movimientoSeleccionado.metodoPago || movimientoSeleccionado.metodoIngreso || movimientoSeleccionado.paymentMethod;
+          const subcategoriaTexto = movimientoSeleccionado.subcategoria || movimientoSeleccionado.subcategory;
+          const comercioTexto = movimientoSeleccionado.comercio || movimientoSeleccionado.merchant;
+          const fuenteTexto = movimientoSeleccionado.fuentePagador || movimientoSeleccionado.source;
+          const proyectoTexto = movimientoSeleccionado.proyecto || movimientoSeleccionado.project;
+          const estadoTexto = movimientoSeleccionado.estado || movimientoSeleccionado.status;
+          const tieneCuotas = movimientoSeleccionado.cuotas && movimientoSeleccionado.cuotas > 1;
+          const tarjetaTexto = movimientoSeleccionado.tarjetaNombre || movimientoSeleccionado.creditCardDetails?.cardName;
+          const tieneRecurrencia = movimientoSeleccionado.esRecurrente || movimientoSeleccionado.isRecurring;
+          const frecuenciaTexto = movimientoSeleccionado.frecuenciaRecurrencia || movimientoSeleccionado.frecuenciaGasto || movimientoSeleccionado.recurrenceFrequency;
+          const tieneImpactoPatrimonial = movimientoSeleccionado.impactoPatrimonial !== undefined && movimientoSeleccionado.impactoPatrimonial !== null;
+          const tieneComprobante = Boolean(movimientoSeleccionado.attachmentUrl);
 
           return (
             <div className="p-4 bg-white rounded-top-custom">
@@ -789,10 +804,10 @@ export default function Home() {
                   </div>
                   <div>
                     <h5 className="mb-0 font-weight-bold" style={{ fontSize: '1rem', color: '#1E1F30' }}>
-                      {movimientoSeleccionado.descripcion}
+                      {movimientoSeleccionado.descripcion || movimientoSeleccionado.description || (esIngreso ? 'Ingreso' : 'Egreso')}
                     </h5>
                     <span style={{ fontSize: '0.74rem', color: '#8E92A4' }}>
-                      {movimientoSeleccionado.categoria || (esIngreso ? 'Ingreso' : 'Gasto')}
+                      {movimientoSeleccionado.categoria || movimientoSeleccionado.category || (esIngreso ? 'Ingreso' : 'Gasto')}
                     </span>
                   </div>
                 </div>
@@ -806,24 +821,120 @@ export default function Home() {
               </div>
 
               <div className="text-center py-2 bg-light rounded-lg mb-3">
+                <div className="d-flex justify-content-center align-items-center gap-2 mb-1">
+                  <span style={{ fontSize: '0.74rem', color: '#8E92A4', textTransform: 'uppercase', fontWeight: 700 }}>
+                    Monto registrado
+                  </span>
+                  {estadoTexto && (
+                    <span
+                      style={{
+                        fontSize: '0.68rem',
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        background: estadoTexto === 'Pagado' || estadoTexto === 'Confirmado' ? '#ECFDF5' : estadoTexto === 'Pendiente' ? '#FEF3C7' : '#FEE2E2',
+                        color: estadoTexto === 'Pagado' || estadoTexto === 'Confirmado' ? '#10B981' : estadoTexto === 'Pendiente' ? '#D97706' : '#EF4444'
+                      }}
+                    >
+                      {estadoTexto}
+                    </span>
+                  )}
+                </div>
                 <span style={{ fontSize: '1.6rem', fontWeight: 800, color: esIngreso ? '#10B981' : '#F46F5F' }}>
                   {esIngreso ? '+' : '-'} Q {cantidadNum.toFixed(2)}
                 </span>
               </div>
 
+              {/* Lista Condicional de Atributos */}
               <div className="d-flex flex-column gap-2 mb-3" style={{ fontSize: '0.82rem' }}>
                 <div className="d-flex justify-content-between border-bottom pb-1">
                   <span className="text-muted">Fecha y hora</span>
-                  <span className="font-weight-bold">{movimientoSeleccionado.fecha} &bull; {movimientoSeleccionado.hora}</span>
+                  <span className="font-weight-bold">{movimientoSeleccionado.fecha} &bull; {movimientoSeleccionado.hora || 'No especificada'}</span>
                 </div>
-                <div className="d-flex justify-content-between border-bottom pb-1">
-                  <span className="text-muted">Cuenta</span>
-                  <span className="font-weight-bold">{movimientoSeleccionado.cuentaOrigen || movimientoSeleccionado.cuentaDestino || 'Efectivo'}</span>
-                </div>
+
+                {cuentaTexto && (
+                  <div className="d-flex justify-content-between border-bottom pb-1">
+                    <span className="text-muted">Cuenta</span>
+                    <span className="font-weight-bold">{cuentaTexto}</span>
+                  </div>
+                )}
+
+                {metodoPagoTexto && (
+                  <div className="d-flex justify-content-between border-bottom pb-1">
+                    <span className="text-muted">Método</span>
+                    <span className="font-weight-bold">{metodoPagoTexto}</span>
+                  </div>
+                )}
+
+                {subcategoriaTexto && (
+                  <div className="d-flex justify-content-between border-bottom pb-1">
+                    <span className="text-muted">Subcategoría</span>
+                    <span className="font-weight-bold">{subcategoriaTexto}</span>
+                  </div>
+                )}
+
+                {comercioTexto && (
+                  <div className="d-flex justify-content-between border-bottom pb-1">
+                    <span className="text-muted">Comercio</span>
+                    <span className="font-weight-bold">{comercioTexto}</span>
+                  </div>
+                )}
+
+                {fuenteTexto && (
+                  <div className="d-flex justify-content-between border-bottom pb-1">
+                    <span className="text-muted">Fuente / Pagador</span>
+                    <span className="font-weight-bold">{fuenteTexto}</span>
+                  </div>
+                )}
+
+                {proyectoTexto && (
+                  <div className="d-flex justify-content-between border-bottom pb-1">
+                    <span className="text-muted">Proyecto</span>
+                    <span className="font-weight-bold">{proyectoTexto}</span>
+                  </div>
+                )}
+
+                {tarjetaTexto && (
+                  <div className="d-flex justify-content-between border-bottom pb-1">
+                    <span className="text-muted">Tarjeta</span>
+                    <span className="font-weight-bold">{tarjetaTexto}</span>
+                  </div>
+                )}
+
+                {tieneCuotas && (
+                  <div className="d-flex justify-content-between border-bottom pb-1">
+                    <span className="text-muted">Financiamiento</span>
+                    <span className="badge badge-primary">{movimientoSeleccionado.cuotas} cuotas</span>
+                  </div>
+                )}
+
+                {tieneRecurrencia && (
+                  <div className="d-flex justify-content-between border-bottom pb-1">
+                    <span className="text-muted">Recurrencia</span>
+                    <span className="badge badge-info">{frecuenciaTexto || 'Frecuente'}</span>
+                  </div>
+                )}
+
+                {tieneImpactoPatrimonial && (
+                  <div className="d-flex justify-content-between border-bottom pb-1">
+                    <span className="text-muted">Patrimonio real</span>
+                    <span style={{ fontWeight: 700, color: movimientoSeleccionado.impactoPatrimonial ? '#10B981' : '#6B7280' }}>
+                      {movimientoSeleccionado.impactoPatrimonial ? '✓ Suma a patrimonio' : '○ Neutro / Pasivo'}
+                    </span>
+                  </div>
+                )}
               </div>
 
-              {movimientoSeleccionado.attachmentUrl && (
+              {/* SECCIÓN DE COMPROBANTE CON FOTO O EMPTY STATE */}
+              {tieneComprobante ? (
                 <div className="mb-3 p-2 bg-light rounded text-center border">
+                  <div className="d-flex align-items-center justify-content-between mb-1 px-1">
+                    <span className="font-weight-bold" style={{ fontSize: '0.78rem', color: '#1E1F30' }}>
+                      <i className="fas fa-receipt mr-1" style={{ color: '#4E44EB' }}></i>
+                      Comprobante adjunto
+                    </span>
+                    <span className="badge badge-success" style={{ fontSize: '0.68rem' }}>En la nube</span>
+                  </div>
                   <img
                     src={movimientoSeleccionado.attachmentUrl}
                     alt="Ticket"
@@ -841,6 +952,18 @@ export default function Home() {
                   >
                     <i className="fas fa-external-link-alt mr-1"></i> Ver comprobante / ticket ↗
                   </a>
+                </div>
+              ) : (
+                <div className="mb-3 py-3 px-2 bg-light rounded text-center border">
+                  <div className="mb-1" style={{ opacity: 0.55 }}>
+                    <i className="fas fa-receipt text-muted" style={{ fontSize: '1.4rem' }}></i>
+                  </div>
+                  <strong style={{ fontSize: '0.8rem', color: '#1E1F30', display: 'block' }}>
+                    Sin comprobante adjunto
+                  </strong>
+                  <span style={{ fontSize: '0.72rem', color: '#8E92A4', display: 'block' }}>
+                    No se subió foto o ticket para este movimiento.
+                  </span>
                 </div>
               )}
 

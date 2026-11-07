@@ -606,9 +606,34 @@ export default function Movimientos() {
         dialogClassName="modal-bottom-sheet-dialog"
       >
         {itemSeleccionado && (() => {
-          const meta = getCategoryMeta(itemSeleccionado.descripcion, itemSeleccionado.tipo);
+          const meta = getCategoryMeta(itemSeleccionado.descripcion || itemSeleccionado.description, itemSeleccionado.tipo);
           const esIngreso = itemSeleccionado.tipo === 2;
-          const cantidadNum = parseFloat(itemSeleccionado.cantidad) || 0;
+          const cantidadNum = parseFloat(itemSeleccionado.cantidad || itemSeleccionado.amount) || 0;
+
+          // Extracción inteligente y condicional de propiedades
+          const cuentaTexto = itemSeleccionado.cuentaOrigen || itemSeleccionado.cuentaDestino || itemSeleccionado.account;
+          const metodoPagoTexto = itemSeleccionado.metodoPago || itemSeleccionado.metodoIngreso || itemSeleccionado.paymentMethod;
+          const subcategoriaTexto = itemSeleccionado.subcategoria || itemSeleccionado.subcategory;
+          const comercioTexto = itemSeleccionado.comercio || itemSeleccionado.merchant;
+          const fuenteTexto = itemSeleccionado.fuentePagador || itemSeleccionado.source;
+          const proyectoTexto = itemSeleccionado.proyecto || itemSeleccionado.project;
+          const estadoTexto = itemSeleccionado.estado || itemSeleccionado.status;
+          const notasTexto = itemSeleccionado.notas || (itemSeleccionado.description && itemSeleccionado.description !== itemSeleccionado.descripcion ? itemSeleccionado.description : null);
+
+          // Detalles de tarjeta y cuotas
+          const tieneCuotas = itemSeleccionado.cuotas && itemSeleccionado.cuotas > 1;
+          const tarjetaTexto = itemSeleccionado.tarjetaNombre || itemSeleccionado.creditCardDetails?.cardName;
+          const diaCorteTexto = itemSeleccionado.diaCorte || itemSeleccionado.creditCardDetails?.cutOffDay;
+          const diaPagoTexto = itemSeleccionado.diaPago || itemSeleccionado.creditCardDetails?.paymentDueDay;
+
+          // Detalles de recurrencia
+          const tieneRecurrencia = itemSeleccionado.esRecurrente || itemSeleccionado.isRecurring;
+          const frecuenciaTexto = itemSeleccionado.frecuenciaRecurrencia || itemSeleccionado.frecuenciaGasto || itemSeleccionado.recurrenceFrequency;
+          const vencimientoTexto = itemSeleccionado.vencimientoGasto || itemSeleccionado.dueDate;
+
+          // Impacto patrimonial
+          const tieneImpactoPatrimonial = itemSeleccionado.impactoPatrimonial !== undefined && itemSeleccionado.impactoPatrimonial !== null;
+          const tieneComprobante = Boolean(itemSeleccionado.attachmentUrl);
 
           return (
             <div className="p-4 bg-white rounded-top-custom">
@@ -623,10 +648,10 @@ export default function Movimientos() {
                   </div>
                   <div>
                     <h5 className="mb-0 font-weight-bold" style={{ fontSize: '1.05rem', color: '#1E1F30' }}>
-                      {itemSeleccionado.descripcion || (esIngreso ? 'Ingreso' : 'Egreso')}
+                      {itemSeleccionado.descripcion || itemSeleccionado.description || (esIngreso ? 'Ingreso' : 'Egreso')}
                     </h5>
                     <span style={{ fontSize: '0.78rem', color: '#8E92A4' }}>
-                      {itemSeleccionado.categoria || (esIngreso ? 'Ingreso' : 'Egreso')}
+                      {itemSeleccionado.categoria || itemSeleccionado.category || (esIngreso ? 'Ingreso' : 'Gasto')}
                     </span>
                   </div>
                 </div>
@@ -639,11 +664,27 @@ export default function Movimientos() {
                 </button>
               </div>
 
-              {/* Monto Grande Destacado */}
+              {/* Monto Grande Destacado con Estado */}
               <div className="text-center py-3 bg-light rounded-lg mb-3">
-                <span style={{ fontSize: '0.78rem', color: '#8E92A4', textTransform: 'uppercase', fontWeight: 700 }}>
-                  Monto registrado
-                </span>
+                <div className="d-flex justify-content-center align-items-center gap-2 mb-1">
+                  <span style={{ fontSize: '0.75rem', color: '#8E92A4', textTransform: 'uppercase', fontWeight: 700 }}>
+                    Monto registrado
+                  </span>
+                  {estadoTexto && (
+                    <span
+                      style={{
+                        fontSize: '0.68rem',
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        background: estadoTexto === 'Pagado' || estadoTexto === 'Confirmado' ? '#ECFDF5' : estadoTexto === 'Pendiente' ? '#FEF3C7' : '#FEE2E2',
+                        color: estadoTexto === 'Pagado' || estadoTexto === 'Confirmado' ? '#10B981' : estadoTexto === 'Pendiente' ? '#D97706' : '#EF4444'
+                      }}
+                    >
+                      {estadoTexto}
+                    </span>
+                  )}
+                </div>
                 <div
                   style={{
                     fontSize: '1.8rem',
@@ -655,41 +696,88 @@ export default function Movimientos() {
                 </div>
               </div>
 
-              {/* Atributos y Clasificación */}
-              <div className="d-flex flex-column gap-2 mb-4">
+              {/* Lista Condicional de Atributos (Solo se muestran si tienen información) */}
+              <div className="d-flex flex-column gap-2 mb-3">
+                {/* Fecha y hora */}
                 <div className="d-flex justify-content-between p-2 border-bottom">
                   <span className="text-muted" style={{ fontSize: '0.82rem' }}>Fecha y hora</span>
                   <span className="font-weight-bold" style={{ fontSize: '0.82rem' }}>
-                    {itemSeleccionado.fechaLegible || itemSeleccionado.fecha} &bull; {itemSeleccionado.hora || 'No especificada'}
+                    {itemSeleccionado.fechaLegible || itemSeleccionado.fecha} &bull; {itemSeleccionado.hora || itemSeleccionado.time || 'No especificada'}
                   </span>
                 </div>
 
-                <div className="d-flex justify-content-between p-2 border-bottom">
-                  <span className="text-muted" style={{ fontSize: '0.82rem' }}>Cuenta</span>
-                  <span className="font-weight-bold" style={{ fontSize: '0.82rem' }}>
-                    {itemSeleccionado.cuentaOrigen || itemSeleccionado.cuentaDestino || 'Efectivo'}
-                  </span>
-                </div>
+                {/* Cuenta */}
+                {cuentaTexto && (
+                  <div className="d-flex justify-content-between p-2 border-bottom">
+                    <span className="text-muted" style={{ fontSize: '0.82rem' }}>Cuenta</span>
+                    <span className="font-weight-bold" style={{ fontSize: '0.82rem' }}>
+                      {cuentaTexto}
+                    </span>
+                  </div>
+                )}
 
-                {itemSeleccionado.subcategoria && (
+                {/* Método de pago / ingreso */}
+                {metodoPagoTexto && (
+                  <div className="d-flex justify-content-between p-2 border-bottom">
+                    <span className="text-muted" style={{ fontSize: '0.82rem' }}>Método</span>
+                    <span className="font-weight-bold" style={{ fontSize: '0.82rem' }}>
+                      {metodoPagoTexto}
+                    </span>
+                  </div>
+                )}
+
+                {/* Subcategoría */}
+                {subcategoriaTexto && (
                   <div className="d-flex justify-content-between p-2 border-bottom">
                     <span className="text-muted" style={{ fontSize: '0.82rem' }}>Subcategoría</span>
                     <span className="font-weight-bold" style={{ fontSize: '0.82rem' }}>
-                      {itemSeleccionado.subcategoria}
+                      {subcategoriaTexto}
                     </span>
                   </div>
                 )}
 
-                {itemSeleccionado.comercio && (
+                {/* Comercio / Beneficiario */}
+                {comercioTexto && (
                   <div className="d-flex justify-content-between p-2 border-bottom">
                     <span className="text-muted" style={{ fontSize: '0.82rem' }}>Comercio</span>
                     <span className="font-weight-bold" style={{ fontSize: '0.82rem' }}>
-                      {itemSeleccionado.comercio}
+                      {comercioTexto}
                     </span>
                   </div>
                 )}
 
-                {itemSeleccionado.cuotas && itemSeleccionado.cuotas > 1 && (
+                {/* Fuente / Pagador (Ingresos) */}
+                {fuenteTexto && (
+                  <div className="d-flex justify-content-between p-2 border-bottom">
+                    <span className="text-muted" style={{ fontSize: '0.82rem' }}>Fuente / Pagador</span>
+                    <span className="font-weight-bold" style={{ fontSize: '0.82rem' }}>
+                      {fuenteTexto}
+                    </span>
+                  </div>
+                )}
+
+                {/* Proyecto */}
+                {proyectoTexto && (
+                  <div className="d-flex justify-content-between p-2 border-bottom">
+                    <span className="text-muted" style={{ fontSize: '0.82rem' }}>Proyecto</span>
+                    <span className="font-weight-bold" style={{ fontSize: '0.82rem' }}>
+                      {proyectoTexto}
+                    </span>
+                  </div>
+                )}
+
+                {/* Tarjeta de crédito */}
+                {tarjetaTexto && (
+                  <div className="d-flex justify-content-between p-2 border-bottom">
+                    <span className="text-muted" style={{ fontSize: '0.82rem' }}>Tarjeta</span>
+                    <span className="font-weight-bold" style={{ fontSize: '0.82rem' }}>
+                      {tarjetaTexto}
+                    </span>
+                  </div>
+                )}
+
+                {/* Cuotas de financiamiento */}
+                {tieneCuotas && (
                   <div className="d-flex justify-content-between p-2 border-bottom">
                     <span className="text-muted" style={{ fontSize: '0.82rem' }}>Financiamiento</span>
                     <span className="badge badge-primary" style={{ fontSize: '0.75rem' }}>
@@ -697,10 +785,64 @@ export default function Movimientos() {
                     </span>
                   </div>
                 )}
+
+                {/* Corte y Pago de Tarjeta */}
+                {(diaCorteTexto || diaPagoTexto) && (
+                  <div className="d-flex justify-content-between p-2 border-bottom">
+                    <span className="text-muted" style={{ fontSize: '0.82rem' }}>Ciclo tarjeta</span>
+                    <span className="font-weight-bold" style={{ fontSize: '0.82rem' }}>
+                      Corte: día {diaCorteTexto || '--'} &bull; Pago: día {diaPagoTexto || '--'}
+                    </span>
+                  </div>
+                )}
+
+                {/* Recurrencia */}
+                {tieneRecurrencia && (
+                  <div className="d-flex justify-content-between p-2 border-bottom">
+                    <span className="text-muted" style={{ fontSize: '0.82rem' }}>Recurrencia</span>
+                    <span className="badge badge-info" style={{ fontSize: '0.75rem' }}>
+                      {frecuenciaTexto || 'Frecuente'}
+                    </span>
+                  </div>
+                )}
+
+                {/* Próximo vencimiento */}
+                {vencimientoTexto && (
+                  <div className="d-flex justify-content-between p-2 border-bottom">
+                    <span className="text-muted" style={{ fontSize: '0.82rem' }}>Próx. vencimiento</span>
+                    <span className="font-weight-bold" style={{ fontSize: '0.82rem' }}>
+                      {vencimientoTexto}
+                    </span>
+                  </div>
+                )}
+
+                {/* Impacto patrimonial */}
+                {tieneImpactoPatrimonial && (
+                  <div className="d-flex justify-content-between p-2 border-bottom">
+                    <span className="text-muted" style={{ fontSize: '0.82rem' }}>Patrimonio real</span>
+                    <span
+                      style={{
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        color: itemSeleccionado.impactoPatrimonial ? '#10B981' : '#6B7280'
+                      }}
+                    >
+                      {itemSeleccionado.impactoPatrimonial ? '✓ Suma a patrimonio' : '○ Neutro / Pasivo'}
+                    </span>
+                  </div>
+                )}
+
+                {/* Notas adicionales */}
+                {notasTexto && (
+                  <div className="p-2 border-bottom">
+                    <span className="text-muted d-block mb-1" style={{ fontSize: '0.78rem' }}>Notas:</span>
+                    <p className="mb-0 text-dark" style={{ fontSize: '0.82rem' }}>{notasTexto}</p>
+                  </div>
+                )}
               </div>
 
-              {/* Comprobante / Ticket Adjunto alojado en Cloudinary */}
-              {itemSeleccionado.attachmentUrl && (
+              {/* SECCIÓN DE COMPROBANTE: CON FOTO O EMPTY STATE */}
+              {tieneComprobante ? (
                 <div className="mb-3 p-3 bg-light rounded-lg border text-center">
                   <div className="d-flex align-items-center justify-content-between mb-2">
                     <span className="font-weight-bold" style={{ fontSize: '0.82rem', color: '#1E1F30' }}>
@@ -733,6 +875,19 @@ export default function Movimientos() {
                     <i className="fas fa-external-link-alt"></i>
                     Ver comprobante a tamaño completo ↗
                   </a>
+                </div>
+              ) : (
+                /* EMPTY STATE CUANDO NO SE SUBIÓ FOTO */
+                <div className="mb-3 py-3 px-3 bg-light rounded-lg border text-center">
+                  <div className="d-flex align-items-center justify-content-center mb-1" style={{ opacity: 0.55 }}>
+                    <i className="fas fa-receipt text-muted" style={{ fontSize: '1.6rem' }}></i>
+                  </div>
+                  <strong style={{ fontSize: '0.82rem', color: '#1E1F30', display: 'block' }}>
+                    Sin comprobante adjunto
+                  </strong>
+                  <span style={{ fontSize: '0.74rem', color: '#8E92A4', display: 'block' }}>
+                    No se subió foto o ticket para esta transacción.
+                  </span>
                 </div>
               )}
 
