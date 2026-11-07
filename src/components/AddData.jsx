@@ -3,6 +3,7 @@ import { useHistory, useParams } from 'react-router-dom';
 import _swal from 'sweetalert';
 import { auth, firedb, firebase } from '../firebaseConfig';
 import { subirACloudinary } from '../utils/cloudinary';
+import VisorImagenModal from './VisorImagenModal';
 import './styles.css';
 
 /**
@@ -246,6 +247,7 @@ export default function AddData() {
   const [frecuenciaRecurrencia, setFrecuenciaRecurrencia] = useState('Quincenal');
   const [archivoComprobante, setArchivoComprobante] = useState(null);
   const [urlVistaPrevia, setUrlVistaPrevia] = useState(null);
+  const [modalImagenGrande, setModalImagenGrande] = useState(null);
   const [impactoPatrimonial, setImpactoPatrimonial] = useState(true);
   const [guardando, setGuardando] = useState(false);
 
@@ -479,7 +481,9 @@ export default function AddData() {
         metodoIngreso: metodoIngreso,
         impactoPatrimonial: impactoPatrimonial,
         esRecurrente: esRecurrente,
-        estado: estadoTransaccion
+        estado: estadoTransaccion,
+        attachmentUrl: urlFinalComprobante || null,
+        urlComprobante: urlFinalComprobante || null
       });
 
       // Recordar la última cuenta utilizada en el almacenamiento local
@@ -655,7 +659,9 @@ export default function AddData() {
         comercio: comercioGasto.trim() || null,
         esRecurrente: esRecurrenteGasto,
         estado: estadoGasto,
-        cuotas: esTarjetaCredito ? cuotasNumero : 1
+        cuotas: esTarjetaCredito ? cuotasNumero : 1,
+        attachmentUrl: urlFinalComprobante || null,
+        urlComprobante: urlFinalComprobante || null
       });
 
       // Recordar preferencias en el almacenamiento local para inteligencia de usuario
@@ -692,7 +698,7 @@ export default function AddData() {
 
   return (
     <div className="container" style={{ paddingTop: '16px', paddingBottom: '90px', maxWidth: '640px' }}>
-      
+
       {/* =============================================================== */}
       {/* ENCABEZADO SUPERIOR ESTANDARIZADO                               */}
       {/* =============================================================== */}
@@ -732,7 +738,7 @@ export default function AddData() {
       </div>
 
       <div className="modulo-ingreso-contenedor">
-        
+
         {/* Selector de Tipo (Ingreso vs Egreso) */}
         <div className="type-switcher-pills mb-3">
           <button
@@ -758,7 +764,7 @@ export default function AddData() {
         {/* =================================================================== */}
         {esModoIngreso ? (
           <form onSubmit={guardarIngreso}>
-            
+
             {/* 1. CAJA DESTACADA DEL MONTO */}
             <div className="caja-captura-monto">
               <div className="etiqueta-monto-guia">
@@ -832,7 +838,7 @@ export default function AddData() {
                   Seleccionada: <strong style={{ color: '#4E44EB' }}>{categoriaSeleccionada}</strong>
                 </span>
               </div>
-              
+
               <div className="grilla-categorias-finanzia">
                 {CATEGORIAS_INGRESOS.map((cat) => (
                   <div
@@ -893,13 +899,13 @@ export default function AddData() {
             {/* =============================================================== */}
             {mostrarOpcionesAvanzadas && (
               <div className="panel-opciones-avanzadas mb-3">
-                
+
                 {/* BLOQUE A: INFORMACIÓN FINANCIERA */}
                 <div className="seccion-avanzada-bloque">
                   <div className="titulo-seccion-avanzada">
                     <i className="fas fa-university mr-1" style={{ color: '#4E44EB' }}></i> Información Financiera
                   </div>
-                  
+
                   <div className="row g-2">
                     <div className="col-12 col-sm-6 mb-2 mb-sm-0">
                       <label className="etiqueta-campo-finanzia">Cuenta destino</label>
@@ -1089,10 +1095,6 @@ export default function AddData() {
                             <span>Elegir galería</span>
                           </button>
                         </div>
-                        <span style={{ fontSize: '0.72rem', color: '#8E92A4', display: 'block', marginTop: '6px', textAlign: 'center' }}>
-                          <i className="fas fa-magic mr-1" style={{ color: '#4E44EB' }}></i>
-                          Optimizado y comprimido automáticamente en Cloudinary
-                        </span>
                       </div>
                     ) : (
                       <div>
@@ -1102,15 +1104,19 @@ export default function AddData() {
                               src={urlVistaPrevia}
                               alt="Vista previa ticket"
                               className="miniatura-preview-ticket"
-                              onClick={() => window.open(urlVistaPrevia, '_blank')}
-                              title="Toca para ver tamaño completo"
+                              onClick={() => setModalImagenGrande(urlVistaPrevia)}
+                              title="Toca para ver en grande"
                             />
                           )}
-                          <div className="info-preview-ticket">
+                          <div
+                            className="info-preview-ticket"
+                            style={{ cursor: 'pointer' }}
+                            onClick={() => setModalImagenGrande(urlVistaPrevia)}
+                          >
                             <span className="nombre-preview-ticket">{archivoComprobante.name}</span>
                             <span className="badge-peso-ticket">
-                              <i className="fas fa-check-circle mr-1"></i>
-                              Listo para subir ({formatearTamanioArchivo(archivoComprobante.size)})
+                              <i className="fas fa-search-plus mr-1"></i>
+                              Ver en grande ({formatearTamanioArchivo(archivoComprobante.size)})
                             </span>
                           </div>
                           <button
@@ -1144,7 +1150,7 @@ export default function AddData() {
                 </div>
 
                 {/* BLOQUE E: INTELIGENCIA PATRIMONIAL */}
-                <div className={`tarjeta-inteligencia-patrimonial ${impactoPatrimonial ? 'positivo' : 'neutral'}`}>
+                {/* <div className={`tarjeta-inteligencia-patrimonial ${impactoPatrimonial ? 'positivo' : 'neutral'}`}>
                   <div>
                     <strong style={{ fontSize: '0.86rem', color: impactoPatrimonial ? '#3730A3' : '#9F1239', display: 'block' }}>
                       {impactoPatrimonial ? '✓ Suma a Patrimonio Real (Activo Neto)' : '⚠ Excluido de Patrimonio Real'}
@@ -1162,7 +1168,7 @@ export default function AddData() {
                     style={{ width: '20px', height: '20px', accentColor: impactoPatrimonial ? '#4E44EB' : '#F46F5F' }}
                     title="Alternar impacto patrimonial"
                   />
-                </div>
+                </div> */}
 
               </div>
             )}
@@ -1192,7 +1198,7 @@ export default function AddData() {
           /* FORMULARIO DE EGRESO (GASTO) FINANZIA CON DIVULGACIÓN PROGRESIVA    */
           /* =================================================================== */
           <form onSubmit={guardarGasto}>
-            
+
             {/* 1. CAJA DESTACADA DEL MONTO (Estilo Gasto Coral) */}
             <div className="caja-captura-monto gasto">
               <div className="etiqueta-monto-guia" style={{ color: '#F46F5F' }}>
@@ -1276,7 +1282,7 @@ export default function AddData() {
                   Seleccionada: <strong style={{ color: '#F46F5F' }}>{categoriaGasto}</strong>
                 </span>
               </div>
-              
+
               <div className="grilla-categorias-finanzia">
                 {CATEGORIAS_EGRESOS.map((cat) => (
                   <div
@@ -1346,13 +1352,13 @@ export default function AddData() {
             {/* =============================================================== */}
             {mostrarOpcionesAvanzadas && (
               <div className="panel-opciones-avanzadas mb-3">
-                
+
                 {/* BLOQUE A: CUENTA ORIGEN Y MÉTODO DE PAGO */}
                 <div className="seccion-avanzada-bloque">
                   <div className="titulo-seccion-avanzada">
                     <i className="fas fa-wallet mr-1" style={{ color: '#F46F5F' }}></i> Cuenta y Método de Pago
                   </div>
-                  
+
                   <div className="row g-2">
                     <div className="col-12 col-sm-6 mb-2 mb-sm-0">
                       <label className="etiqueta-campo-finanzia">Cuenta origen (de dónde sale el dinero)</label>
@@ -1646,10 +1652,6 @@ export default function AddData() {
                             <span>Elegir galería</span>
                           </button>
                         </div>
-                        <span style={{ fontSize: '0.72rem', color: '#8E92A4', display: 'block', marginTop: '6px', textAlign: 'center' }}>
-                          <i className="fas fa-magic mr-1" style={{ color: '#F46F5F' }}></i>
-                          Optimizado y comprimido automáticamente en Cloudinary
-                        </span>
                       </div>
                     ) : (
                       <div>
@@ -1659,15 +1661,19 @@ export default function AddData() {
                               src={urlVistaPreviaGasto}
                               alt="Vista previa ticket gasto"
                               className="miniatura-preview-ticket"
-                              onClick={() => window.open(urlVistaPreviaGasto, '_blank')}
-                              title="Toca para ver tamaño completo"
+                              onClick={() => setModalImagenGrande(urlVistaPreviaGasto)}
+                              title="Toca para ver en grande"
                             />
                           )}
-                          <div className="info-preview-ticket">
+                          <div
+                            className="info-preview-ticket"
+                            style={{ cursor: 'pointer' }}
+                            onClick={() => setModalImagenGrande(urlVistaPreviaGasto)}
+                          >
                             <span className="nombre-preview-ticket">{archivoComprobanteGasto.name}</span>
                             <span className="badge-peso-ticket" style={{ color: '#F46F5F', background: '#FFF1F2' }}>
-                              <i className="fas fa-check-circle mr-1"></i>
-                              Listo para subir ({formatearTamanioArchivo(archivoComprobanteGasto.size)})
+                              <i className="fas fa-search-plus mr-1"></i>
+                              Ver en grande ({formatearTamanioArchivo(archivoComprobanteGasto.size)})
                             </span>
                           </div>
                           <button
@@ -1725,6 +1731,13 @@ export default function AddData() {
         )}
 
       </div>
+
+      {/* Modal Visor de Comprobante en Grande */}
+      <VisorImagenModal
+        urlImagen={modalImagenGrande}
+        alCerrar={() => setModalImagenGrande(null)}
+        titulo="Vista previa de comprobante"
+      />
     </div>
   );
 }

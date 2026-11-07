@@ -2,8 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useHistory } from 'react-router-dom';
 import { Modal } from 'react-bootstrap';
 import _swal from 'sweetalert';
-import { firedb } from '../firebaseConfig';
+import { auth, firedb } from '../firebaseConfig';
 import { getCategoryMeta } from './categoryIcons';
+import VisorImagenModal from './VisorImagenModal';
 import './styles.css';
 
 /**
@@ -66,6 +67,7 @@ export default function Movimientos() {
   const [listaMovimientos, setListaMovimientos] = useState([]);
   const [itemSeleccionado, setItemSeleccionado] = useState(null);
   const [mostrarModalDetalle, setMostrarModalDetalle] = useState(false);
+  const [modalImagenGrande, setModalImagenGrande] = useState(null);
 
   // Estados de filtros
   const [busquedaTexto, setBusquedaTexto] = useState('');
@@ -112,12 +114,68 @@ export default function Movimientos() {
         .limit(60)
         .get();
 
-      const registros = snapshot.docs.map(doc => ({
+      let registros = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
         fechaOriginal: doc.data().fecha,
         fechaLegible: formatearFecha(doc.data().fecha)
       }));
+
+      // Sincronización inteligente de comprobantes:
+      // Si algún registro no tiene attachmentUrl, revisamos en users/{idUsuario}/expenses o incomes
+      try {
+        const registrosSinAdjunto = registros.filter(r => !r.attachmentUrl && !r.urlComprobante);
+        if (registrosSinAdjunto.length > 0 && idUsuario) {
+          const idUserStr = idUsuario.toString();
+          const authUser = auth.currentUser;
+          const uidEfectivo = (authUser && authUser.uid) ? authUser.uid : idUserStr;
+
+          const [gastosSnap, ingresosSnap] = await Promise.all([
+            firedb.collection('users').doc(uidEfectivo).collection('expenses').where('attachmentUrl', '!=', null).limit(15).get().catch(() => null),
+            firedb.collection('users').doc(uidEfectivo).collection('incomes').where('attachmentUrl', '!=', null).limit(15).get().catch(() => null)
+          ]);
+
+          const mapaAdjuntos = {};
+          if (gastosSnap && !gastosSnap.empty) {
+            gastosSnap.forEach(d => {
+              const data = d.data();
+              if (data.attachmentUrl) {
+                mapaAdjuntos[`${data.date}_${data.amount}_1`] = data.attachmentUrl;
+                mapaAdjuntos[`${data.date}_${data.amount}`] = data.attachmentUrl;
+              }
+            });
+          }
+          if (ingresosSnap && !ingresosSnap.empty) {
+            ingresosSnap.forEach(d => {
+              const data = d.data();
+              if (data.attachmentUrl) {
+                mapaAdjuntos[`${data.date}_${data.amount}_2`] = data.attachmentUrl;
+                mapaAdjuntos[`${data.date}_${data.amount}`] = data.attachmentUrl;
+              }
+            });
+          }
+
+          if (Object.keys(mapaAdjuntos).length > 0) {
+            registros = registros.map(reg => {
+              if (!reg.attachmentUrl && !reg.urlComprobante) {
+                const llaveTipo = `${reg.fecha}_${reg.cantidad}_${reg.tipo}`;
+                const llaveSimple = `${reg.fecha}_${reg.cantidad}`;
+                const urlEncontrada = mapaAdjuntos[llaveTipo] || mapaAdjuntos[llaveSimple];
+                if (urlEncontrada) {
+                  // Actualizar en segundo plano en caja-chica para persistencia permanente
+                  firedb.collection('caja-chica').doc(reg.id).update({
+                    attachmentUrl: urlEncontrada
+                  }).catch(() => {});
+                  return { ...reg, attachmentUrl: urlEncontrada };
+                }
+              }
+              return reg;
+            });
+          }
+        }
+      } catch (errSync) {
+        console.warn('Sincronización fallback de comprobantes:', errSync);
+      }
 
       setListaMovimientos(registros);
     } catch (error) {
@@ -571,10 +629,24 @@ export default function Movimientos() {
                     <span className="transaccion-fecha-texto">
                       {item.fechaLegible || item.fecha} &bull; {item.hora || ''}
                     </span>
-                    {item.attachmentUrl && (
-                      <span className="badge-ticket-adjunto" title="Comprobante adjunto">
-                        <i className="fas fa-paperclip"></i> Ticket
-                      </span>
+                    {(item.attachmentUrl || item.urlComprobante) && (
+                      <div
+                        className="d-flex align-items-center gap-1 ml-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setModalImagenGrande(item.attachmentUrl || item.urlComprobante);
+                        }}
+                        title="Toca para ver comprobante en grande"
+                      >
+                        <img
+                          src={item.attachmentUrl || item.urlComprobante}
+                          alt="Ticket"
+                          className="miniatura-fila-transaccion"
+                        />
+                        <span className="badge-ticket-adjunto">
+                          <i className="fas fa-receipt"></i>
+                        </span>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -633,7 +705,8 @@ export default function Movimientos() {
 
           // Impacto patrimonial
           const tieneImpactoPatrimonial = itemSeleccionado.impactoPatrimonial !== undefined && itemSeleccionado.impactoPatrimonial !== null;
-          const tieneComprobante = Boolean(itemSeleccionado.attachmentUrl);
+          const urlComprobante = itemSeleccionado.attachmentUrl || itemSeleccionado.urlComprobante || itemSeleccionado.comprobanteUrl || itemSeleccionado.ticketUrl || itemSeleccionado.fotoUrl || itemSeleccionado.imageUrl;
+          const tieneComprobante = Boolean(urlComprobante);
 
           return (
             <div className="p-4 bg-white rounded-top-custom">
@@ -850,31 +923,47 @@ export default function Movimientos() {
                       Comprobante / Ticket adjunto
                     </span>
                     <span className="badge badge-success" style={{ fontSize: '0.7rem' }}>
-                      <i className="fas fa-check mr-1"></i>En la nube
+                      <i className="fas fa-check-circle mr-1"></i>En Cloudinary
                     </span>
                   </div>
 
-                  <div className="position-relative text-center my-2">
+                  {/* Tarjeta de preview interactiva con miniatura */}
+                  <div
+                    className="tarjeta-preview-comprobante my-2"
+                    onClick={() => setModalImagenGrande(urlComprobante)}
+                    title="Toca para ver comprobante en grande"
+                  >
                     <img
-                      src={itemSeleccionado.attachmentUrl}
+                      src={urlComprobante}
                       alt="Comprobante ticket"
-                      className="img-fluid rounded shadow-sm"
-                      style={{ maxHeight: '180px', objectFit: 'contain', cursor: 'pointer' }}
-                      onClick={() => window.open(itemSeleccionado.attachmentUrl, '_blank')}
-                      title="Toca para abrir a tamaño original"
+                      className="img-preview-comprobante"
                     />
+                    <div className="overlay-preview-comprobante">
+                      <i className="fas fa-search-plus"></i>
+                      <span>Toca para ver en grande</span>
+                    </div>
                   </div>
 
-                  <a
-                    href={itemSeleccionado.attachmentUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-sm btn-outline-primary w-100 py-1 d-flex align-items-center justify-content-center gap-2 mt-2"
-                    style={{ borderRadius: '10px', fontWeight: 700, fontSize: '0.8rem' }}
-                  >
-                    <i className="fas fa-external-link-alt"></i>
-                    Ver comprobante a tamaño completo ↗
-                  </a>
+                  <div className="d-flex gap-2 mt-2">
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-primary flex-grow-1 py-2 font-weight-bold d-flex align-items-center justify-content-center gap-2"
+                      style={{ borderRadius: '10px', fontSize: '0.82rem' }}
+                      onClick={() => setModalImagenGrande(urlComprobante)}
+                    >
+                      <i className="fas fa-expand"></i> Ver en grande
+                    </button>
+                    <a
+                      href={urlComprobante}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-sm btn-outline-secondary py-2 px-3 d-flex align-items-center justify-content-center"
+                      style={{ borderRadius: '10px', fontSize: '0.82rem' }}
+                      title="Abrir URL original"
+                    >
+                      <i className="fas fa-external-link-alt"></i>
+                    </a>
+                  </div>
                 </div>
               ) : (
                 /* EMPTY STATE CUANDO NO SE SUBIÓ FOTO */
@@ -905,6 +994,13 @@ export default function Movimientos() {
           );
         })()}
       </Modal>
+
+      {/* Modal Visor de Comprobante en Grande */}
+      <VisorImagenModal
+        urlImagen={modalImagenGrande}
+        alCerrar={() => setModalImagenGrande(null)}
+        titulo="Comprobante / Ticket de Transacción"
+      />
 
     </div>
   );

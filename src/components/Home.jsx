@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useHistory } from 'react-router-dom';
 import { Modal } from 'react-bootstrap';
-import { firedb } from '../firebaseConfig';
+import { auth, firedb } from '../firebaseConfig';
 import PiggyBankSvg from './PiggyBankSvg';
 import { getCategoryMeta } from './categoryIcons';
+import VisorImagenModal from './VisorImagenModal';
 import './styles.css';
 
 /**
@@ -36,8 +37,10 @@ export default function Home() {
   const [saldoHistoricoTotal, setSaldoHistoricoTotal] = useState(0);
   const [movimientoSeleccionado, setMovimientoSeleccionado] = useState(null);
   const [mostrarModalDetalle, setMostrarModalDetalle] = useState(false);
+  const [modalImagenGrande, setModalImagenGrande] = useState(null);
 
   // Períodos disponibles: 'mes' | 'ultimo_mes' | '3_meses' | '6_meses' | 'anio' | 'personalizado'
+  // eslint-disable-next-line no-unused-vars
   const [periodoSeleccionado, setPeriodoSeleccionado] = useState('mes');
   const [fechaInicioPersonalizada, setFechaInicioPersonalizada] = useState('');
   const [fechaFinPersonalizada, setFechaFinPersonalizada] = useState('');
@@ -117,10 +120,60 @@ export default function Home() {
         .limit(4)
         .get();
 
-      const itemsPrevios = snapshotMovimientos.docs.map(doc => ({
+      let itemsPrevios = snapshotMovimientos.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
+
+      // Sincronización inteligente de comprobantes para movimientos recientes
+      try {
+        const sinAdjunto = itemsPrevios.filter(r => !r.attachmentUrl && !r.urlComprobante);
+        if (sinAdjunto.length > 0 && idUsuario) {
+          const authUser = auth.currentUser;
+          const uidEfectivo = (authUser && authUser.uid) ? authUser.uid : idUsuario.toString();
+
+          const [gastosSnap, ingresosSnap] = await Promise.all([
+            firedb.collection('users').doc(uidEfectivo).collection('expenses').where('attachmentUrl', '!=', null).limit(10).get().catch(() => null),
+            firedb.collection('users').doc(uidEfectivo).collection('incomes').where('attachmentUrl', '!=', null).limit(10).get().catch(() => null)
+          ]);
+
+          const mapaAdjuntos = {};
+          if (gastosSnap && !gastosSnap.empty) {
+            gastosSnap.forEach(d => {
+              const data = d.data();
+              if (data.attachmentUrl) {
+                mapaAdjuntos[`${data.date}_${data.amount}`] = data.attachmentUrl;
+              }
+            });
+          }
+          if (ingresosSnap && !ingresosSnap.empty) {
+            ingresosSnap.forEach(d => {
+              const data = d.data();
+              if (data.attachmentUrl) {
+                mapaAdjuntos[`${data.date}_${data.amount}`] = data.attachmentUrl;
+              }
+            });
+          }
+
+          if (Object.keys(mapaAdjuntos).length > 0) {
+            itemsPrevios = itemsPrevios.map(reg => {
+              if (!reg.attachmentUrl && !reg.urlComprobante) {
+                const llave = `${reg.fecha}_${reg.cantidad}`;
+                const urlEncontrada = mapaAdjuntos[llave];
+                if (urlEncontrada) {
+                  firedb.collection('caja-chica').doc(reg.id).update({
+                    attachmentUrl: urlEncontrada
+                  }).catch(() => {});
+                  return { ...reg, attachmentUrl: urlEncontrada };
+                }
+              }
+              return reg;
+            });
+          }
+        }
+      } catch (errSync) {
+        console.warn('Fallback sync comprobantes en Home:', errSync);
+      }
 
       setUltimosMovimientos(itemsPrevios);
 
@@ -367,7 +420,7 @@ export default function Home() {
       {/* =============================================================== */}
       {/* 2. SELECTOR DESLIZABLE DE PERÍODOS                             */}
       {/* =============================================================== */}
-      <div className="selector-periodos-deslizable">
+      {/* <div className="selector-periodos-deslizable">
         <button
           type="button"
           className={`pildora-periodo-item ${periodoSeleccionado === 'mes' ? 'activo' : ''}`}
@@ -410,7 +463,7 @@ export default function Home() {
         >
           <i className="fas fa-calendar-alt mr-1"></i> Personalizado
         </button>
-      </div>
+      </div> */}
 
       {/* =============================================================== */}
       {/* 3. TARJETA HERO DE SALDO DISPONIBLE CON PIGGY BANK              */}
@@ -490,7 +543,7 @@ export default function Home() {
         <div className="widget-titulo-seccion">
           <span>
             <i className="fas fa-chart-bar mr-2" style={{ color: '#4E44EB' }}></i>
-            Ingresos vs Gastos Semanales
+            Ingresos vs Gastos
           </span>
           <span
             className={`badge-diferencia-flujo ${estadisticasFlujoSemanal.diferencia >= 0 ? 'superavit' : 'deficit'}`}
@@ -537,14 +590,11 @@ export default function Home() {
               <span style={{ display: 'inline-block', width: '8px', height: '8px', background: '#4E44EB', borderRadius: '50%', marginRight: '5px' }}></span>
               Ingresos
             </span>
-            <span style={{ fontSize: '0.74rem', color: '#F46F5F', fontWeight: 700 }}>
+            <span style={{ fontSize: '0.74rem', color: '#F46F5F', fontWeight: 700, marginLeft: '10px' }}>
               <span style={{ display: 'inline-block', width: '8px', height: '8px', background: '#F46F5F', borderRadius: '50%', marginRight: '5px' }}></span>
               Gastos
             </span>
           </div>
-          <span style={{ fontSize: '0.73rem', color: '#8E92A4', fontWeight: 600 }}>
-            {estadisticasFlujoSemanal.diferencia >= 0 ? 'Diferencia a favor' : 'Diferencia en contra'}
-          </span>
         </div>
       </div>
 
@@ -724,9 +774,30 @@ export default function Home() {
                     <span className="transaccion-titulo">
                       {item.descripcion || (esIngreso ? 'Ingreso' : 'Egreso')}
                     </span>
-                    <span className="transaccion-fecha-texto">
-                      {formatearFechaCorta(item.fecha)} &bull; {item.categoria || (esIngreso ? 'Ingreso' : 'Gasto')}
-                    </span>
+                    <div className="d-flex align-items-center gap-2 mt-1">
+                      <span className="transaccion-fecha-texto">
+                        {formatearFechaCorta(item.fecha)} &bull; {item.categoria || (esIngreso ? 'Ingreso' : 'Gasto')}
+                      </span>
+                      {(item.attachmentUrl || item.urlComprobante) && (
+                        <div
+                          className="d-flex align-items-center gap-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setModalImagenGrande(item.attachmentUrl || item.urlComprobante);
+                          }}
+                          title="Toca para ver comprobante en grande"
+                        >
+                          <img
+                            src={item.attachmentUrl || item.urlComprobante}
+                            alt="Ticket"
+                            className="miniatura-fila-transaccion"
+                          />
+                          <span className="badge-ticket-adjunto">
+                            <i className="fas fa-receipt"></i>
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="transaccion-monto-col">
@@ -790,7 +861,8 @@ export default function Home() {
           const tieneRecurrencia = movimientoSeleccionado.esRecurrente || movimientoSeleccionado.isRecurring;
           const frecuenciaTexto = movimientoSeleccionado.frecuenciaRecurrencia || movimientoSeleccionado.frecuenciaGasto || movimientoSeleccionado.recurrenceFrequency;
           const tieneImpactoPatrimonial = movimientoSeleccionado.impactoPatrimonial !== undefined && movimientoSeleccionado.impactoPatrimonial !== null;
-          const tieneComprobante = Boolean(movimientoSeleccionado.attachmentUrl);
+          const urlComprobante = movimientoSeleccionado.attachmentUrl || movimientoSeleccionado.urlComprobante || movimientoSeleccionado.comprobanteUrl || movimientoSeleccionado.ticketUrl || movimientoSeleccionado.fotoUrl || movimientoSeleccionado.imageUrl;
+          const tieneComprobante = Boolean(urlComprobante);
 
           return (
             <div className="p-4 bg-white rounded-top-custom">
@@ -927,31 +999,55 @@ export default function Home() {
 
               {/* SECCIÓN DE COMPROBANTE CON FOTO O EMPTY STATE */}
               {tieneComprobante ? (
-                <div className="mb-3 p-2 bg-light rounded text-center border">
-                  <div className="d-flex align-items-center justify-content-between mb-1 px-1">
-                    <span className="font-weight-bold" style={{ fontSize: '0.78rem', color: '#1E1F30' }}>
+                <div className="mb-3 p-3 bg-light rounded-lg border text-center">
+                  <div className="d-flex align-items-center justify-content-between mb-2">
+                    <span className="font-weight-bold" style={{ fontSize: '0.8rem', color: '#1E1F30' }}>
                       <i className="fas fa-receipt mr-1" style={{ color: '#4E44EB' }}></i>
-                      Comprobante adjunto
+                      Comprobante / Ticket adjunto
                     </span>
-                    <span className="badge badge-success" style={{ fontSize: '0.68rem' }}>En la nube</span>
+                    <span className="badge badge-success" style={{ fontSize: '0.68rem' }}>
+                      <i className="fas fa-check-circle mr-1"></i>En Cloudinary
+                    </span>
                   </div>
-                  <img
-                    src={movimientoSeleccionado.attachmentUrl}
-                    alt="Ticket"
-                    className="img-fluid rounded mb-2"
-                    style={{ maxHeight: '140px', objectFit: 'contain', cursor: 'pointer' }}
-                    onClick={() => window.open(movimientoSeleccionado.attachmentUrl, '_blank')}
-                    title="Toca para ver tamaño original"
-                  />
-                  <a
-                    href={movimientoSeleccionado.attachmentUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-sm btn-outline-primary d-block font-weight-bold"
-                    style={{ fontSize: '0.78rem' }}
+
+                  {/* Tarjeta de preview interactiva con miniatura */}
+                  <div
+                    className="tarjeta-preview-comprobante my-2"
+                    onClick={() => setModalImagenGrande(urlComprobante)}
+                    title="Toca para ver comprobante en grande"
                   >
-                    <i className="fas fa-external-link-alt mr-1"></i> Ver comprobante / ticket ↗
-                  </a>
+                    <img
+                      src={urlComprobante}
+                      alt="Ticket"
+                      className="img-preview-comprobante"
+                      style={{ maxHeight: '160px' }}
+                    />
+                    <div className="overlay-preview-comprobante">
+                      <i className="fas fa-search-plus"></i>
+                      <span>Ver en grande</span>
+                    </div>
+                  </div>
+
+                  <div className="d-flex gap-2 mt-2">
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-primary flex-grow-1 py-2 font-weight-bold d-flex align-items-center justify-content-center gap-2"
+                      style={{ borderRadius: '10px', fontSize: '0.82rem' }}
+                      onClick={() => setModalImagenGrande(urlComprobante)}
+                    >
+                      <i className="fas fa-expand"></i> Ver en grande
+                    </button>
+                    <a
+                      href={urlComprobante}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-sm btn-outline-secondary py-2 px-3 d-flex align-items-center justify-content-center"
+                      style={{ borderRadius: '10px', fontSize: '0.82rem' }}
+                      title="Abrir URL original"
+                    >
+                      <i className="fas fa-external-link-alt"></i>
+                    </a>
+                  </div>
                 </div>
               ) : (
                 <div className="mb-3 py-3 px-2 bg-light rounded text-center border">
@@ -1026,6 +1122,13 @@ export default function Home() {
           </button>
         </div>
       </Modal>
+
+      {/* Modal Visor de Comprobante en Grande */}
+      <VisorImagenModal
+        urlImagen={modalImagenGrande}
+        alCerrar={() => setModalImagenGrande(null)}
+        titulo="Comprobante / Ticket de Transacción"
+      />
 
     </div>
   );
