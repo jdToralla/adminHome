@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useHistory } from 'react-router-dom';
 import { Modal } from 'react-bootstrap';
+import _swal from 'sweetalert';
 import { auth, firedb } from '../firebaseConfig';
 import PiggyBankSvg from './PiggyBankSvg';
 import { getCategoryMeta } from './categoryIcons';
@@ -403,6 +404,32 @@ export default function Home() {
       });
   }, [todosLosMovimientos]);
 
+  // Confirmar y cerrar sesión permanente
+  const confirmarCerrarSesionHome = () => {
+    _swal({
+      title: '¿Cerrar sesión?',
+      text: '¿Seguro que deseas salir? Tendrás que ingresar tus credenciales nuevamente.',
+      icon: 'warning',
+      buttons: ['Cancelar', 'Cerrar Sesión'],
+      dangerMode: true,
+    }).then(async (confirmado) => {
+      if (confirmado) {
+        try {
+          await auth.signOut();
+        } catch (error) {
+          console.warn('Error al cerrar sesión:', error);
+        }
+        const recordado = localStorage.getItem('rememberedIdentifier');
+        localStorage.clear();
+        if (recordado) {
+          localStorage.setItem('rememberedIdentifier', recordado);
+        }
+        historial.push('/login');
+        window.location.reload();
+      }
+    });
+  };
+
   return (
     <div className="container" style={{ paddingTop: '16px', paddingBottom: '90px', maxWidth: '640px' }}>
 
@@ -428,7 +455,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Botón de recarga y notificaciones */}
+        {/* Botón de recarga y cerrar sesión */}
         <div className="d-flex align-items-center gap-2">
           <button
             type="button"
@@ -438,6 +465,15 @@ export default function Home() {
             title="Actualizar datos"
           >
             <i className={`fas fa-sync-alt ${cargando ? 'fa-spin' : ''}`} style={{ color: '#4E44EB' }}></i>
+          </button>
+          <button
+            type="button"
+            className="btn btn-sm btn-light shadow-sm rounded-circle d-flex align-items-center justify-content-center"
+            style={{ width: '38px', height: '38px', border: '1px solid #FEE2E2', background: '#FFF5F5' }}
+            onClick={confirmarCerrarSesionHome}
+            title="Cerrar sesión"
+          >
+            <i className="fas fa-sign-out-alt" style={{ color: '#EF4444', fontSize: '0.9rem' }}></i>
           </button>
         </div>
       </div>

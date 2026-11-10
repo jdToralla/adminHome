@@ -4,38 +4,129 @@ import _swal from 'sweetalert';
 import { auth, firedb, googleProvider } from '../firebaseConfig';
 import './styles.css';
 
+/** Dominio virtual interno para cuentas creadas con nombre de usuario en Firebase Auth */
+const DOMINIO_VIRTUAL = '@finanzia.local';
+
+/**
+ * Normaliza y limpia un nombre de usuario (tipo Instagram/Twitter):
+ * - Minúsculas
+ * - Sin espacios
+ * - Solo caracteres alfanuméricos, puntos y guiones bajos
+ */
+const normalizarUsuario = (texto) => {
+  if (!texto) return '';
+  return texto.toLowerCase().trim().replace(/[^a-z0-9_.]/g, '');
+};
+
+/**
+ * Valida el formato del nombre de usuario
+ */
+const validarFormatoUsuario = (userStr) => {
+  if (!userStr || userStr.length < 3) {
+    return 'El nombre de usuario debe tener al menos 3 caracteres.';
+  }
+  if (userStr.length > 20) {
+    return 'El nombre de usuario no puede exceder los 20 caracteres.';
+  }
+  if (!/^[a-z0-9_.]+$/.test(userStr)) {
+    return 'El usuario solo puede contener letras (a-z), números (0-9), puntos o guiones bajos (sin espacios).';
+  }
+  return null;
+};
+
+/**
+ * Genera sugerencias cuando un nombre de usuario ya está ocupado
+ */
+const generarSugerenciasUsuario = (base) => {
+  const aleatorio = Math.floor(Math.random() * 89 + 10);
+  return [
+    `${base}1`,
+    `${base}2`,
+    `${base}_${aleatorio}`,
+    `${base}_app`
+  ];
+};
+
+/**
+ * Verifica si un nombre de usuario ya está registrado en Firestore
+ */
+const verificarDisponibilidadUsuario = async (nombreUsuarioLower) => {
+  try {
+    // 1. Verificar en la colección de índices únicos 'usernames'
+    const docUsername = await firedb.collection('usernames').doc(nombreUsuarioLower).get();
+    if (docUsername.exists) {
+      return false;
+    }
+
+    // 2. Verificar en la colección de usuarios 'users' por retrocompatibilidad
+    const snapUser = await firedb
+      .collection('users')
+      .where('user', '==', nombreUsuarioLower)
+      .limit(1)
+      .get();
+    if (!snapUser.empty) {
+      return false;
+    }
+
+    const snapUsername = await firedb
+      .collection('users')
+      .where('username', '==', nombreUsuarioLower)
+      .limit(1)
+      .get();
+    if (!snapUsername.empty) {
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.warn('Error al verificar disponibilidad de usuario en Firestore:', error);
+    return true;
+  }
+};
+
 function Login() {
   const [mode, setMode] = useState('login'); // 'login' or 'register'
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+
+  // Estados para Login
+  const [identificador, setIdentificador] = useState(''); // Usuario o Correo
   const [pass, setPass] = useState('');
-  const [confirmPass, setConfirmPass] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
+
+  // Estados para Registro
+  const [username, setUsername] = useState('');
+  const [name, setName] = useState('');
+  const [confirmPass, setConfirmPass] = useState('');
+  const [sugerencias, setSugerencias] = useState([]);
+
+  // Estados de feedback
   const [msgerror, setMsgError] = useState(null);
   const [loading, setLoading] = useState(false);
   const historial = useHistory();
 
+  // 1. Comprobar si ya existe una sesión abierta permanente (tipo Gmail/YouTube)
   useEffect(() => {
-    // 1. Check if user already has an active session to skip login
-    const savedId = localStorage.getItem('currentId');
-    const savedEmail = localStorage.getItem('rememberedEmail');
+    const usuarioGuardado = localStorage.getItem('currentId');
+    const recordado = localStorage.getItem('rememberedIdentifier');
 
-    if (savedEmail) {
-      setEmail(savedEmail);
+    if (recordado) {
+      setIdentificador(recordado);
+    }
+
+    if (usuarioGuardado) {
+      historial.push('/home');
+      return;
     }
 
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
         localStorage.setItem('currentId', user.uid);
         localStorage.setItem('currentUserEmail', user.email || '');
-        localStorage.setItem('currentUserName', user.displayName || (user.email ? user.email.split('@')[0] : 'Usuario'));
+        const nombreFinal = user.displayName || (user.email ? user.email.split('@')[0] : 'Usuario');
+        localStorage.setItem('currentUserName', nombreFinal);
         if (user.photoURL) {
           localStorage.setItem('currentUserPhoto', user.photoURL);
         }
-        historial.push('/home');
-      } else if (savedId) {
-        // Legacy active session
         historial.push('/home');
       }
     });
@@ -43,7 +134,7 @@ function Login() {
     return () => unsubscribe();
   }, [historial]);
 
-  // Google Sign In & Auto-Registration
+  // Iniciar Sesión o Registrarse con Google
   const iniciarConGoogle = async () => {
     setMsgError(null);
     setLoading(true);
@@ -51,28 +142,53 @@ function Login() {
       const result = await auth.signInWithPopup(googleProvider);
       const user = result.user;
       if (user) {
-        localStorage.setItem('currentId', user.uid);
-        localStorage.setItem('currentUserEmail', user.email || '');
-        localStorage.setItem('currentUserName', user.displayName || user.email.split('@')[0]);
-        if (user.photoURL) {
-          localStorage.setItem('currentUserPhoto', user.photoURL);
-        }
+        const emailPrefix = user.email ? user.email.split('@')[0] : 'usuario';
+        const usernameBase = normalizarUsuario(emailPrefix) || 'usuario';
 
-        // Auto-sync in Firestore 'users'
+        // Auto-sincronización en Firestore
         try {
           const userDoc = await firedb.collection('users').doc(user.uid).get();
+          let usernameAsignado = usernameBase;
+
           if (!userDoc.exists) {
+            const libre = await verificarDisponibilidadUsuario(usernameBase);
+            usernameAsignado = libre ? usernameBase : `${usernameBase}${Math.floor(Math.random() * 89 + 10)}`;
+
             await firedb.collection('users').doc(user.uid).set({
               uid: user.uid,
-              user: user.displayName || user.email.split('@')[0],
+              user: usernameAsignado,
+              username: usernameAsignado,
+              displayName: user.displayName || usernameAsignado,
               email: user.email,
               photoURL: user.photoURL || '',
               createdAt: new Date().toISOString(),
               authProvider: 'google'
             });
+
+            await firedb.collection('usernames').doc(usernameAsignado).set({
+              uid: user.uid,
+              username: usernameAsignado,
+              email: user.email,
+              displayName: user.displayName || usernameAsignado,
+              createdAt: new Date().toISOString()
+            }).catch(() => {});
+          } else {
+            usernameAsignado = userDoc.data().username || userDoc.data().user || usernameBase;
+          }
+
+          localStorage.setItem('currentId', user.uid);
+          localStorage.setItem('currentUserEmail', user.email || '');
+          localStorage.setItem('currentUserName', user.displayName || usernameAsignado);
+          localStorage.setItem('currentUsername', usernameAsignado);
+          if (user.photoURL) {
+            localStorage.setItem('currentUserPhoto', user.photoURL);
           }
         } catch (syncErr) {
           console.warn('Sync user doc error:', syncErr);
+          localStorage.setItem('currentId', user.uid);
+          localStorage.setItem('currentUserEmail', user.email || '');
+          localStorage.setItem('currentUserName', user.displayName || usernameBase);
+          localStorage.setItem('currentUsername', usernameBase);
         }
 
         _swal({
@@ -91,7 +207,7 @@ function Login() {
         if (errorText.includes('CONFIGURATION_NOT_FOUND') || error.code === 'auth/configuration-not-found') {
           _swal({
             title: 'Habilitar Google en Firebase',
-            text: 'El proveedor de Google aún no está activado en tu consola de Firebase. Debes ingresar a Firebase Console > Authentication > Sign-in method y activar "Google". Consulta GUIA_ADMINISTRADOR_FIREBASE.md',
+            text: 'Debes habilitar Google en Firebase Console > Authentication > Sign-in method.',
             icon: 'info',
             button: 'Entendido'
           });
@@ -105,27 +221,33 @@ function Login() {
     }
   };
 
-  // Submit Handler: Login or Register
+  // Manejador principal de formulario (Login o Registro por Usuario)
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMsgError(null);
+    setSugerencias([]);
     setLoading(true);
 
-    const cleanEmail = email.trim();
-    const cleanPass = pass.trim();
-
-    // Mode: REGISTRO DE NUEVA CUENTA
+    // =========================================================================
+    // MODO: REGISTRO DE NUEVA CUENTA POR NOMBRE DE USUARIO
+    // =========================================================================
     if (mode === 'register') {
-      if (!cleanEmail.includes('@')) {
-        setMsgError('Por favor ingresa un correo electrónico válido.');
+      const cleanUser = normalizarUsuario(username);
+      const cleanPass = pass.trim();
+
+      const errorFormato = validarFormatoUsuario(cleanUser);
+      if (errorFormato) {
+        setMsgError(errorFormato);
         setLoading(false);
         return;
       }
+
       if (cleanPass.length < 6) {
         setMsgError('La contraseña debe tener al menos 6 caracteres.');
         setLoading(false);
         return;
       }
+
       if (cleanPass !== confirmPass.trim()) {
         setMsgError('Las contraseñas no coinciden. Por favor verifícalas.');
         setLoading(false);
@@ -133,54 +255,72 @@ function Login() {
       }
 
       try {
-        const userCred = await auth.createUserWithEmailAndPassword(cleanEmail, cleanPass);
+        // 1. VALIDACIÓN DE UNICIDAD: Verificar si el usuario ya existe
+        const disponible = await verificarDisponibilidadUsuario(cleanUser);
+        if (!disponible) {
+          const nuevasSugerencias = generarSugerenciasUsuario(cleanUser);
+          setSugerencias(nuevasSugerencias);
+          setMsgError(`El usuario "@${cleanUser}" ya está en uso. Elige uno de los nombres sugeridos abajo o prueba otro.`);
+          setLoading(false);
+          return;
+        }
+
+        // 2. Generar credencial virtual para Firebase Auth
+        const emailAuth = `${cleanUser}${DOMINIO_VIRTUAL}`;
+        const userCred = await auth.createUserWithEmailAndPassword(emailAuth, cleanPass);
         const user = userCred.user;
+
         if (user) {
-          const displayName = name.trim() || cleanEmail.split('@')[0];
+          const displayName = name.trim() || cleanUser;
           try {
             await user.updateProfile({ displayName: displayName });
           } catch (pErr) {
             console.warn('Update profile error:', pErr);
           }
 
-          // Register in Firestore 'users'
-          try {
-            await firedb.collection('users').doc(user.uid).set({
-              uid: user.uid,
-              user: displayName,
-              email: cleanEmail,
-              createdAt: new Date().toISOString(),
-              authProvider: 'password'
-            });
-          } catch (fErr) {
-            console.warn('Firestore user save error:', fErr);
-          }
+          // 3. Registrar índice de unicidad en la colección 'usernames'
+          await firedb.collection('usernames').doc(cleanUser).set({
+            uid: user.uid,
+            username: cleanUser,
+            email: emailAuth,
+            displayName: displayName,
+            createdAt: new Date().toISOString()
+          });
 
-          if (rememberMe) {
-            localStorage.setItem('rememberedEmail', cleanEmail);
-          }
+          // 4. Registrar en la colección 'users'
+          await firedb.collection('users').doc(user.uid).set({
+            uid: user.uid,
+            username: cleanUser,
+            user: cleanUser,
+            displayName: displayName,
+            email: emailAuth,
+            authProvider: 'username',
+            createdAt: new Date().toISOString()
+          });
+
+          // 5. Dejar sesión abierta permanentemente (tipo Gmail/YouTube)
           localStorage.setItem('currentId', user.uid);
-          localStorage.setItem('currentUserEmail', cleanEmail);
+          localStorage.setItem('currentUserEmail', emailAuth);
           localStorage.setItem('currentUserName', displayName);
+          localStorage.setItem('currentUsername', cleanUser);
+          localStorage.setItem('rememberedIdentifier', cleanUser);
 
           _swal({
-            title: '¡Cuenta creada con éxito!',
-            text: `Bienvenido a AdminHome, ${displayName}.`,
+            title: `¡Bienvenido, @${cleanUser}!`,
+            text: 'Tu cuenta ha sido creada exitosamente. Tu sesión permanecerá abierta.',
             icon: 'success',
-            timer: 1300,
+            timer: 1400,
             buttons: false
           });
           historial.push('/home');
         }
       } catch (regError) {
-        console.error('Registration error:', regError);
+        console.error('Error al registrar usuario:', regError);
         let msg = 'No se pudo crear la cuenta.';
         if (regError.code === 'auth/email-already-in-use') {
-          msg = 'Este correo ya está registrado. Puedes iniciar sesión directamente.';
-        } else if (regError.code === 'auth/invalid-email') {
-          msg = 'El formato del correo electrónico es inválido.';
+          msg = `El usuario "@${cleanUser}" ya está registrado. Si es tu cuenta, inicia sesión directamente.`;
         } else if (regError.code === 'auth/weak-password') {
-          msg = 'La contraseña es demasiado débil (mínimo 6 caracteres).';
+          msg = 'La contraseña debe tener al menos 6 caracteres.';
         }
         setMsgError(msg);
       } finally {
@@ -189,57 +329,109 @@ function Login() {
       return;
     }
 
-    // Mode: INICIO DE SESIÓN
+    // =========================================================================
+    // MODO: INICIO DE SESIÓN RÁPIDO (Por Usuario o Correo)
+    // =========================================================================
+    const idLimpio = identificador.trim();
+    const cleanPass = pass.trim();
+
+    if (!idLimpio) {
+      setMsgError('Por favor ingresa tu nombre de usuario o correo.');
+      setLoading(false);
+      return;
+    }
+    if (!cleanPass) {
+      setMsgError('Por favor ingresa tu contraseña.');
+      setLoading(false);
+      return;
+    }
+
+    let emailDestino = idLimpio;
+    let usernameDetectado = idLimpio;
+
+    // Si el identificador NO tiene @, es un nombre de usuario (ej. 'jose')
+    if (!idLimpio.includes('@')) {
+      const userLower = normalizarUsuario(idLimpio);
+      usernameDetectado = userLower;
+      emailDestino = `${userLower}${DOMINIO_VIRTUAL}`;
+
+      try {
+        // Buscar el email real asociado en 'usernames'
+        const docUsername = await firedb.collection('usernames').doc(userLower).get();
+        if (docUsername.exists && docUsername.data().email) {
+          emailDestino = docUsername.data().email;
+        } else {
+          // Fallback a 'users'
+          const snapUser = await firedb.collection('users')
+            .where('user', '==', userLower)
+            .limit(1)
+            .get();
+          if (!snapUser.empty && snapUser.docs[0].data().email) {
+            emailDestino = snapUser.docs[0].data().email;
+          }
+        }
+      } catch (eLookup) {
+        console.warn('Error resolviendo email de usuario:', eLookup);
+      }
+    }
+
     try {
-      // 1. Try Firebase Authentication (Email + Password)
-      const userCred = await auth.signInWithEmailAndPassword(cleanEmail, cleanPass);
+      // 1. Intento en Firebase Authentication
+      const userCred = await auth.signInWithEmailAndPassword(emailDestino, cleanPass);
       const user = userCred.user;
       if (user) {
         if (rememberMe) {
-          localStorage.setItem('rememberedEmail', cleanEmail);
+          localStorage.setItem('rememberedIdentifier', idLimpio);
         } else {
-          localStorage.removeItem('rememberedEmail');
+          localStorage.removeItem('rememberedIdentifier');
         }
         localStorage.setItem('currentId', user.uid);
-        localStorage.setItem('currentUserEmail', user.email || cleanEmail);
-        localStorage.setItem('currentUserName', user.displayName || cleanEmail.split('@')[0]);
+        localStorage.setItem('currentUserEmail', user.email || emailDestino);
+        localStorage.setItem('currentUserName', user.displayName || usernameDetectado);
+        localStorage.setItem('currentUsername', usernameDetectado);
+
         historial.push('/home');
         return;
       }
     } catch (authError) {
-      console.log('Firebase auth failed, checking legacy Firestore fallback:', authError.code);
+      console.log('Firebase auth no coincidió, revisando cuentas legacy en Firestore:', authError.code);
 
-      // 2. Fallback to legacy Firestore 'users' (for existing accounts like norma77)
+      // 2. Fallback de retrocompatibilidad con cuentas legacy en Firestore (ej. norma77)
       try {
+        const userLower = normalizarUsuario(idLimpio);
         const { docs } = await firedb.collection('users').get();
         const matched = docs.map(d => ({ id: d.id, ...d.data() })).find(
-          u => (u.email === cleanEmail || u.user === cleanEmail) && u.pass === cleanPass
+          u => (
+            (u.user && u.user.toLowerCase() === userLower) ||
+            (u.username && u.username.toLowerCase() === userLower) ||
+            (u.email && u.email.toLowerCase() === idLimpio.toLowerCase())
+          ) && u.pass === cleanPass
         );
 
         if (matched) {
           if (rememberMe) {
-            localStorage.setItem('rememberedEmail', cleanEmail);
+            localStorage.setItem('rememberedIdentifier', idLimpio);
           }
           localStorage.setItem('currentId', matched.id);
           localStorage.setItem('currentUserEmail', matched.email || matched.user);
-          localStorage.setItem('currentUserName', matched.user || 'Usuario');
+          localStorage.setItem('currentUserName', matched.user || matched.displayName || 'Usuario');
+          localStorage.setItem('currentUsername', matched.user || userLower);
+
           historial.push('/home');
           return;
         }
       } catch (legacyErr) {
-        console.warn('Legacy fallback error:', legacyErr);
+        console.warn('Error en fallback legacy:', legacyErr);
       }
 
-      // Friendly error mapping
-      let msg = 'Correo o contraseña incorrectos.';
+      // Mapeo amigable de errores
+      let msg = 'Usuario o contraseña incorrectos.';
       if (authError.code === 'auth/wrong-password') {
-        msg = 'Contraseña incorrecta. Puedes recuperarla con el enlace de abajo.';
+        msg = 'Contraseña incorrecta. Por favor verifica tu clave.';
       } else if (authError.code === 'auth/user-not-found') {
-        msg = 'No se encontró ninguna cuenta registrada con este correo.';
-      } else if (authError.code === 'auth/invalid-email') {
-        msg = 'Por favor ingresa un formato de correo electrónico válido.';
+        msg = `No se encontró el usuario o correo "${idLimpio}". Revisa la ortografía o regístrate.`;
       } else if (authError.code === 'auth/too-many-requests') {
-        msg = 'Demasiados intentos fallidos. Intenta más tarde o restablece tu clave.';
+        msg = 'Demasiados intentos fallidos. Por seguridad, espera un momento.';
       }
       setMsgError(msg);
     } finally {
@@ -247,17 +439,17 @@ function Login() {
     }
   };
 
-  // Password Recovery via Email
+  // Recuperación de contraseña por correo (si se usó un correo real)
   const recuperarPassword = () => {
     _swal({
       title: 'Recuperar contraseña',
-      text: 'Ingresa tu correo electrónico registrado y te enviaremos un enlace oficial para restablecerla:',
+      text: 'Ingresa tu correo electrónico registrado para enviarte el enlace oficial de restablecimiento:',
       content: {
         element: 'input',
         attributes: {
           placeholder: 'correo@ejemplo.com',
           type: 'email',
-          defaultValue: email.includes('@') ? email : ''
+          defaultValue: identificador.includes('@') ? identificador : ''
         }
       },
       buttons: {
@@ -290,9 +482,7 @@ function Login() {
         console.error('Password reset error:', err);
         let msg = 'No se pudo enviar el correo de recuperación.';
         if (err.code === 'auth/user-not-found') {
-          msg = 'No existe ninguna cuenta registrada con este correo en Authentication.';
-        } else if (err.code === 'auth/invalid-email') {
-          msg = 'El formato del correo ingresado no es válido.';
+          msg = 'No existe ninguna cuenta registrada con este correo.';
         }
         _swal({
           title: 'No se pudo enviar',
@@ -307,27 +497,27 @@ function Login() {
     <div className="login-container-wrapper">
       <div className="login-glass-card">
         
-        {/* Brand Icon Badge */}
+        {/* Icono de Marca */}
         <div className="login-brand-icon-wrap">
           <i className="fas fa-wallet"></i>
         </div>
 
-        {/* Header Titles */}
+        {/* Títulos */}
         <h2 className="login-card-title">
-          {mode === 'login' ? 'Bienvenido a AdminHome' : 'Crea tu cuenta'}
+          {mode === 'login' ? 'Bienvenido a AdminHome' : 'Crea tu usuario'}
         </h2>
         <p className="login-card-subtitle">
           {mode === 'login'
-            ? 'Ingresa con tu correo y contraseña para administrar tus finanzas.'
-            : 'Completa tus datos para registrarte y empezar a usar la aplicación.'}
+            ? 'Ingresa tu usuario y contraseña. Tu sesión permanecerá abierta.'
+            : 'Elige tu nombre de usuario para registrarte y empezar a usar la aplicación.'}
         </p>
 
-        {/* Mode Selector (Iniciar Sesión vs Crear Cuenta) */}
+        {/* Selector de Modo (Iniciar Sesión vs Registrarse) */}
         <div className="segmented-pills mb-3" style={{ background: '#F4F2F0', padding: '4px' }}>
           <button
             type="button"
             className={`segmented-pill-btn ${mode === 'login' ? 'active' : ''}`}
-            onClick={() => { setMode('login'); setMsgError(null); }}
+            onClick={() => { setMode('login'); setMsgError(null); setSugerencias([]); }}
             style={{ padding: '8px 12px', fontSize: '0.84rem' }}
           >
             <i className="fas fa-sign-in-alt mr-1"></i> Iniciar Sesión
@@ -335,14 +525,14 @@ function Login() {
           <button
             type="button"
             className={`segmented-pill-btn ${mode === 'register' ? 'active' : ''}`}
-            onClick={() => { setMode('register'); setMsgError(null); }}
+            onClick={() => { setMode('register'); setMsgError(null); setSugerencias([]); }}
             style={{ padding: '8px 12px', fontSize: '0.84rem' }}
           >
             <i className="fas fa-user-plus mr-1"></i> Registrarse
           </button>
         </div>
 
-        {/* Error Alert */}
+        {/* Alerta de Error */}
         {msgerror && (
           <div
             className="alert d-flex align-items-center mb-3"
@@ -357,12 +547,39 @@ function Login() {
               padding: '10px 14px'
             }}
           >
-            <i className="fas fa-exclamation-circle mr-2" style={{ fontSize: '1.1rem' }}></i>
+            <i className="fas fa-exclamation-circle mr-2" style={{ fontSize: '1.1rem', flexShrink: 0 }}></i>
             <div>{msgerror}</div>
           </div>
         )}
 
-        {/* Google Sign In Button */}
+        {/* Sugerencias interactivas de nombre de usuario cuando ya está en uso */}
+        {sugerencias.length > 0 && mode === 'register' && (
+          <div className="sugerencias-usuarios-container">
+            <div className="sugerencias-usuarios-titulo">
+              <i className="fas fa-lightbulb"></i>
+              <span>Sugerencias disponibles (toca una para usarla):</span>
+            </div>
+            <div className="sugerencias-usuarios-lista">
+              {sugerencias.map((sug) => (
+                <button
+                  key={sug}
+                  type="button"
+                  className="pildora-sugerencia-usuario"
+                  onClick={() => {
+                    setUsername(sug);
+                    setSugerencias([]);
+                    setMsgError(null);
+                  }}
+                  title={`Usar @${sug}`}
+                >
+                  @{sug}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Botón de Google Sign In */}
         <button
           type="button"
           className="google-sign-in-btn mb-2"
@@ -378,42 +595,77 @@ function Login() {
           <span>{mode === 'login' ? 'Continuar con Google' : 'Registrarme con Google'}</span>
         </button>
 
-        {/* Divider */}
+        {/* Divisor visual */}
         <div className="auth-divider">
-          <span>o con correo electrónico</span>
+          <span>{mode === 'login' ? 'o con tu nombre de usuario' : 'o con nombre de usuario'}</span>
         </div>
 
-        {/* Main Form */}
+        {/* Formulario Principal */}
         <form onSubmit={handleSubmit}>
-          
-          {/* Nombre (solo en modo registro) */}
+
+          {/* ============================================================= */}
+          {/* CAMPOS PARA MODO REGISTRO                                      */}
+          {/* ============================================================= */}
           {mode === 'register' && (
+            <>
+              {/* Campo Usuario Único (Tipo Instagram) */}
+              <div className="auth-input-wrapper mb-2">
+                <i className="fas fa-at auth-input-icon" style={{ color: '#4E44EB', fontWeight: 700 }}></i>
+                <input
+                  onChange={(e) => {
+                    setUsername(normalizarUsuario(e.target.value));
+                    setMsgError(null);
+                  }}
+                  value={username}
+                  className="auth-input-field"
+                  type="text"
+                  placeholder="Nombre de usuario (ej. jose)"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  required
+                  autoFocus
+                />
+              </div>
+              <span className="auth-input-helper">
+                Tu usuario único para entrar rápido sin escribir correos largos.
+              </span>
+
+              {/* Nombre completo o visible (opcional) */}
+              <div className="auth-input-wrapper">
+                <i className="fas fa-user auth-input-icon"></i>
+                <input
+                  onChange={(e) => setName(e.target.value)}
+                  value={name}
+                  className="auth-input-field"
+                  type="text"
+                  placeholder="Nombre visible (opcional, ej. José)"
+                />
+              </div>
+            </>
+          )}
+
+          {/* ============================================================= */}
+          {/* CAMPOS PARA MODO LOGIN                                         */}
+          {/* ============================================================= */}
+          {mode === 'login' && (
             <div className="auth-input-wrapper">
-              <i className="fas fa-user auth-input-icon"></i>
+              <i className="fas fa-user-circle auth-input-icon"></i>
               <input
-                onChange={(e) => setName(e.target.value)}
-                value={name}
+                onChange={(e) => {
+                  setIdentificador(e.target.value);
+                  setMsgError(null);
+                }}
+                value={identificador}
                 className="auth-input-field"
                 type="text"
-                placeholder="Nombre completo (ej. Diego)"
+                placeholder="Usuario (ej. jose) o correo"
+                autoCapitalize="none"
+                autoCorrect="off"
                 required
+                autoFocus
               />
             </div>
           )}
-
-          {/* Correo Electrónico */}
-          <div className="auth-input-wrapper">
-            <i className="fas fa-envelope auth-input-icon"></i>
-            <input
-              onChange={(e) => setEmail(e.target.value)}
-              value={email}
-              className="auth-input-field"
-              type="email"
-              placeholder="correo@ejemplo.com"
-              required
-              autoFocus
-            />
-          </div>
 
           {/* Contraseña */}
           <div className="auth-input-wrapper">
@@ -461,7 +713,7 @@ function Login() {
             </div>
           )}
 
-          {/* Remember me & Forgot password (en modo login) */}
+          {/* Recordarme y sesión permanente */}
           {mode === 'login' && (
             <div className="d-flex justify-content-between align-items-center mb-3 px-1">
               <label className="d-flex align-items-center mb-0" style={{ fontSize: '0.8rem', color: '#8E92A4', cursor: 'pointer' }}>
@@ -472,19 +724,19 @@ function Login() {
                   className="mr-2"
                   style={{ accentColor: '#4E44EB' }}
                 />
-                Recordarme
+                Mantener sesión iniciada
               </label>
               <span
                 style={{ fontSize: '0.8rem', color: '#4E44EB', fontWeight: 700, cursor: 'pointer' }}
                 onClick={recuperarPassword}
-                title="Recuperar contraseña por correo"
+                title="Recuperar contraseña"
               >
-                ¿Olvidaste tu contraseña?
+                ¿Olvidaste tu clave?
               </span>
             </div>
           )}
 
-          {/* Submit Button */}
+          {/* Botón de envío */}
           <button
             type="submit"
             className="auth-btn-submit"
@@ -496,20 +748,21 @@ function Login() {
               </span>
             ) : (
               <span>
-                {mode === 'login' ? 'Iniciar Sesión' : 'Crear Cuenta y Entrar'} <i className="fas fa-arrow-right ml-2"></i>
+                {mode === 'login' ? 'Iniciar Sesión' : 'Crear Cuenta y Entrar'}{' '}
+                <i className="fas fa-arrow-right ml-2"></i>
               </span>
             )}
           </button>
         </form>
 
-        {/* Bottom Switcher Link */}
+        {/* Selector inferior para alternar entre Login y Registro */}
         <div className="text-center mt-3 pt-2" style={{ borderTop: '1px solid #F0ECE8' }}>
           {mode === 'login' ? (
             <span style={{ fontSize: '0.82rem', color: '#8E92A4' }}>
               ¿Aún no tienes cuenta?{' '}
               <strong
                 style={{ color: '#4E44EB', cursor: 'pointer' }}
-                onClick={() => { setMode('register'); setMsgError(null); }}
+                onClick={() => { setMode('register'); setMsgError(null); setSugerencias([]); }}
               >
                 Regístrate aquí
               </strong>
@@ -519,7 +772,7 @@ function Login() {
               ¿Ya tienes una cuenta?{' '}
               <strong
                 style={{ color: '#4E44EB', cursor: 'pointer' }}
-                onClick={() => { setMode('login'); setMsgError(null); }}
+                onClick={() => { setMode('login'); setMsgError(null); setSugerencias([]); }}
               >
                 Inicia sesión
               </strong>

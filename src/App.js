@@ -1,4 +1,4 @@
-import { HashRouter as Router, Route, Switch } from 'react-router-dom';
+import { HashRouter as Router, Route, Switch, Redirect } from 'react-router-dom';
 import './App.css';
 import AddData from './components/AddData';
 import Home from './components/Home';
@@ -8,6 +8,8 @@ import NavegacionInferior from './components/NavegacionInferior';
 import Reportes from './components/Reportes';
 
 function App() {
+  const tieneSesion = Boolean(localStorage.getItem('currentId'));
+
   return (
     <div className="fondo">
       <Router>
@@ -16,8 +18,12 @@ function App() {
           <Route path="/movimientos"> <Movimientos/> </Route>
           <Route path="/reportes"> <Reportes/> </Route>
           <Route path="/home"> <Home/> </Route>
-          <Route path="/login"><Login/></Route>
-          <Route path="/"><Login/></Route>
+          <Route path="/login">
+            {tieneSesion ? <Redirect to="/home" /> : <Login />}
+          </Route>
+          <Route exact path="/">
+            {tieneSesion ? <Redirect to="/home" /> : <Login />}
+          </Route>
         </Switch>
         <NavegacionInferior />
       </Router>

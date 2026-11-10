@@ -24,6 +24,13 @@ const auth = fire.auth();
 const firedb = fire.firestore();
 const fire_storage = fire.storage().ref();
 
+// Configurar persistencia LOCAL para mantener la sesión abierta indefinidamente
+// (tipo Gmail, YouTube o apps móviles nativas hasta que el usuario dé Cerrar sesión)
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+  .catch((errorPersistencia) => {
+    console.warn('Aviso: No se pudo configurar la persistencia LOCAL de Firebase:', errorPersistencia);
+  });
+
 // Google Auth Provider
 const googleProvider = new firebase.auth.GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });

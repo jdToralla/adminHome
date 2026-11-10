@@ -833,6 +833,66 @@
   cursor: pointer;
   box-shadow: 0 6px 20px rgba(78, 68, 235, 0.3);
   margin-top: 8px;
+  transition: all 0.2s ease;
+}
+.auth-btn-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(78, 68, 235, 0.4);
+}
+.auth-btn-submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Sugerencias interactivas de nombre de usuario */
+.sugerencias-usuarios-container {
+  background: #FFF7ED;
+  border: 1px solid #FFEDD5;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  text-align: left;
+  animation: fadeInLightbox 0.25s ease;
+}
+.sugerencias-usuarios-titulo {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #C2410C;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sugerencias-usuarios-lista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pildora-sugerencia-usuario {
+  background: #FFFFFF;
+  border: 1px solid #FDBA74;
+  color: #C2410C;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.pildora-sugerencia-usuario:hover {
+  background: #EA580C;
+  color: #FFFFFF;
+  border-color: #EA580C;
+  transform: scale(1.04);
+}
+.auth-input-helper {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: -10px;
+  margin-bottom: 14px;
+  padding-left: 6px;
+  display: block;
+  text-align: left;
 }
 
 .demo-credentials-card {

@@ -46,8 +46,13 @@ export default function NavegacionInferior() {
         } catch (error) {
           console.warn('Error al cerrar sesión:', error);
         }
+        const recordado = localStorage.getItem('rememberedIdentifier');
         localStorage.clear();
+        if (recordado) {
+          localStorage.setItem('rememberedIdentifier', recordado);
+        }
         historial.push('/login');
+        window.location.reload();
       }
     });
   };

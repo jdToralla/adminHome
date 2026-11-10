@@ -105,7 +105,7 @@ export default function Movimientos() {
     setCargando(true);
     try {
       const idUsuario = localStorage.getItem('currentId');
-      
+
       // Limitamos a los últimos 60 registros para cuidar las lecturas de la capa gratuita
       const snapshot = await firedb
         .collection('caja-chica')
@@ -165,7 +165,7 @@ export default function Movimientos() {
                   // Actualizar en segundo plano en caja-chica para persistencia permanente
                   firedb.collection('caja-chica').doc(reg.id).update({
                     attachmentUrl: urlEncontrada
-                  }).catch(() => {});
+                  }).catch(() => { });
                   return { ...reg, attachmentUrl: urlEncontrada };
                 }
               }
@@ -350,7 +350,7 @@ export default function Movimientos() {
 
   return (
     <div className="container pantalla-movimientos-contenedor" style={{ paddingTop: '16px', paddingBottom: '90px', maxWidth: '640px' }}>
-      
+
       {/* =============================================================== */}
       {/* ENCABEZADO SUPERIOR MINIMALISTA                                 */}
       {/* =============================================================== */}
@@ -452,7 +452,7 @@ export default function Movimientos() {
       {/* =============================================================== */}
       <div className="tarjeta-filtros-avanzados mb-3">
         <div className="row g-2">
-          
+
           {/* Filtro por Fecha Exacta */}
           <div className="col-6 col-md-3">
             <label className="etiqueta-filtro-mini">Fecha exacta</label>
@@ -922,9 +922,6 @@ export default function Movimientos() {
                       <i className="fas fa-receipt mr-1" style={{ color: '#4E44EB' }}></i>
                       Comprobante / Ticket adjunto
                     </span>
-                    <span className="badge badge-success" style={{ fontSize: '0.7rem' }}>
-                      <i className="fas fa-check-circle mr-1"></i>En Cloudinary
-                    </span>
                   </div>
 
                   {/* Tarjeta de preview interactiva con miniatura */}
@@ -1005,4 +1002,3 @@ export default function Movimientos() {
     </div>
   );
 }
-
