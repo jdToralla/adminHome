@@ -6,6 +6,10 @@ import { auth, firedb } from '../firebaseConfig';
 import PiggyBankSvg from './PiggyBankSvg';
 import { getCategoryMeta } from './categoryIcons';
 import VisorImagenModal from './VisorImagenModal';
+import {
+  formatearAFechaVisual,
+  evaluarEstadoPago
+} from '../utils/tarjetasCredito';
 import './styles.css';
 
 /**
@@ -41,6 +45,7 @@ export default function Home() {
   const [mostrarModalDetalle, setMostrarModalDetalle] = useState(false);
   const [modalImagenGrande, setModalImagenGrande] = useState(null);
   const [metasAhorro] = useState([]);
+  const [alertaTarjeta, setAlertaTarjeta] = useState(null);
 
   // Períodos disponibles: 'mes' | 'ultimo_mes' | '3_meses' | '6_meses' | 'anio' | 'personalizado'
   // eslint-disable-next-line no-unused-vars
@@ -190,6 +195,44 @@ export default function Home() {
         else if (doc.tipo === 1) totalEgresos += cant;
       });
       setSaldoHistoricoTotal(totalIngresos - totalEgresos);
+
+      // 4. Consultar tarjeta de crédito familiar para alertas de fecha de pago
+      try {
+        const snapTarjetas = await firedb
+          .collection('tarjetas-credito')
+          .where('idUser', '==', uidNormalizado)
+          .limit(1)
+          .get();
+
+        if (!snapTarjetas.empty) {
+          const tcData = { id: snapTarjetas.docs[0].id, ...snapTarjetas.docs[0].data() };
+          const fechaPagoBase = tcData.fechaPago || '2026-12-01';
+          const infoAlerta = evaluarEstadoPago(fechaPagoBase);
+
+          // Calcular consumos de la tarjeta en los movimientos cargados
+          const gastosTc = itemsTotales.filter(m => (
+            m.tipo === 1 && (
+              m.tarjetaCreditoId === tcData.id ||
+              m.tarjetaCreditoNombre === tcData.nombre ||
+              m.cuentaOrigen === 'Tarjeta de crédito' ||
+              m.metodoPago === 'Tarjeta crédito'
+            )
+          ));
+          const totalGastosTc = gastosTc.reduce((acc, m) => acc + (parseFloat(m.cantidad) || 0), 0);
+
+          setAlertaTarjeta({
+            id: tcData.id,
+            nombre: tcData.nombre || 'VISA Plata',
+            fechaPago: fechaPagoBase,
+            fechaPagoVisual: formatearAFechaVisual(fechaPagoBase),
+            totalCiclo: totalGastosTc,
+            cantidadGastos: gastosTc.length,
+            ...infoAlerta
+          });
+        }
+      } catch (errTc) {
+        console.warn('Aviso leyendo tarjetas en Home:', errTc);
+      }
     } catch (error) {
       console.error('Error al cargar datos del Home:', error);
     } finally {
@@ -527,6 +570,49 @@ export default function Home() {
       </div> */}
 
       {/* =============================================================== */}
+      {/* 2. ALERTA NOTIFICACIÓN DE PAGO DE TARJETA FAMILIAR              */}
+      {/* =============================================================== */}
+      {alertaTarjeta && (
+        <div
+          className="alerta-pago-tarjeta-home mb-3"
+          onClick={() => historial.push(`/tarjeta-familiar?tarjeta=${alertaTarjeta.id}`)}
+          style={{ cursor: 'pointer' }}
+        >
+          <div className="d-flex align-items-center justify-content-between">
+            <div className="d-flex align-items-center gap-2">
+              <div
+                className="icono-alerta-tarjeta-home"
+                style={{
+                  backgroundColor: `${alertaTarjeta.color}15`,
+                  color: alertaTarjeta.color,
+                  border: `1px solid ${alertaTarjeta.color}30`
+                }}
+              >
+                <i className={`${alertaTarjeta.icono}`}></i>
+              </div>
+              <div>
+                <div className="d-flex align-items-center gap-2">
+                  <strong className="titulo-alerta-tarjeta-home">
+                    {alertaTarjeta.titulo}
+                  </strong>
+                  <span className="badge-nombre-tc-home">
+                    {alertaTarjeta.nombre}
+                  </span>
+                </div>
+                <div className="subtitulo-alerta-tarjeta-home">
+                  Límite de pago: <strong>{alertaTarjeta.fechaPagoVisual}</strong> • Total ciclo: <strong>Q {alertaTarjeta.totalCiclo.toFixed(2)}</strong>
+                </div>
+              </div>
+            </div>
+
+            <button type="button" className="btn-ver-liquidacion-home">
+              Ver liquidación <i className="fas fa-chevron-right ml-1"></i>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* =============================================================== */}
       {/* 3. TARJETA HERO DE SALDO DISPONIBLE CON PIGGY BANK              */}
       {/* (Fiel al diseño exacto: Saldo, Monto, Píldoras y Cerdito SVG)   */}
       {/* =============================================================== */}
@@ -547,6 +633,30 @@ export default function Home() {
 
         <div className="hero-piggy-container">
           <PiggyBankSvg width={135} height={105} />
+        </div>
+      </div>
+
+      {/* ACCESO RÁPIDO: TARJETA FAMILIAR */}
+      <div
+        className="banner-acceso-tarjeta-familiar mb-3"
+        onClick={() => historial.push('/tarjeta-familiar')}
+        style={{ cursor: 'pointer' }}
+      >
+        <div className="d-flex align-items-center justify-content-between">
+          <div className="d-flex align-items-center gap-2">
+            <div className="icono-banner-tc">
+              <i className="fas fa-credit-card"></i>
+            </div>
+            <div>
+              <strong className="titulo-banner-tc">Tarjeta de Crédito Familiar</strong>
+              <div className="subtitulo-banner-tc">
+                Ver cuánto debe pagar cada persona de la familia
+              </div>
+            </div>
+          </div>
+          <span className="badge-flecha-banner-tc">
+            Ver liquidación <i className="fas fa-arrow-right ml-1"></i>
+          </span>
         </div>
       </div>
 

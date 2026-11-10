@@ -2739,6 +2739,556 @@
   border-color: #4F46E5;
 }
 
+/* ===============================================================
+   ESTILOS MODERNOS: TARJETA DE CRÉDITO FAMILIAR Y LIQUIDACIÓN
+   =============================================================== */
+.pantalla-tarjeta-familiar-contenedor {
+  min-height: 100vh;
+}
+
+/* Tarjeta Selectores de Ciclos y Tarjeta */
+.tarjeta-selectores-ciclos-tc {
+  background: #FFFFFF;
+  border-radius: 16px;
+  padding: 14px 16px;
+  border: 1px solid #ECE8E3;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.03);
+}
+
+.etiqueta-selector-mini {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #6B7280;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.selector-dropdown-ciclo {
+  border-radius: 12px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #1E1F30;
+  border: 1.5px solid #E5E7EB;
+  padding: 8px 12px;
+  background-color: #F9FAFB;
+  transition: all 0.2s ease;
+}
+.selector-dropdown-ciclo:focus {
+  border-color: #4E44EB;
+  background-color: #FFFFFF;
+  box-shadow: 0 0 0 3px rgba(78, 68, 235, 0.12);
+}
+
+/* Hero Card Tarjeta Familiar */
+.hero-tarjeta-familiar-card {
+  background: linear-gradient(135deg, #1E1F30 0%, #2A2B42 100%);
+  border-radius: 20px;
+  padding: 20px;
+  color: #FFFFFF;
+  box-shadow: 0 12px 28px rgba(30, 31, 48, 0.25);
+  position: relative;
+  overflow: hidden;
+}
+.hero-tarjeta-familiar-card::after {
+  content: '';
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(78, 68, 235, 0.4) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.badge-icono-tarjeta {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #FFD93D;
+  font-size: 0.95rem;
+}
+
+.nombre-tarjeta-hero {
+  font-size: 1.05rem;
+  letter-spacing: -0.2px;
+  color: #FFFFFF;
+}
+
+.badge-estado-pago-tc {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+}
+
+.hero-tarjeta-monto-bloque {
+  display: flex;
+  flex-direction: column;
+}
+
+.etiqueta-monto-hero-tc {
+  font-size: 0.76rem;
+  color: #A5B4FC;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+}
+
+.monto-hero-tc {
+  font-size: clamp(1.8rem, 6vw, 2.3rem);
+  font-weight: 800;
+  color: #FFFFFF;
+  margin-bottom: 0;
+  letter-spacing: -0.5px;
+}
+
+.fechas-hero-tc-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin-top: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.fecha-hero-tc-item {
+  display: flex;
+  flex-direction: column;
+}
+.fecha-hero-tc-item.borde-izq {
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  padding-left: 12px;
+}
+
+.label-fecha-tc {
+  font-size: 0.7rem;
+  color: #9CA3AF;
+  font-weight: 600;
+}
+
+.valor-fecha-tc {
+  font-size: 0.92rem;
+  color: #FFFFFF;
+  font-weight: 800;
+}
+
+.aviso-corte-info-tc {
+  font-size: 0.72rem;
+  color: #9CA3AF;
+  display: flex;
+  align-items: center;
+}
+
+/* Gráfica de Distribución de Gastos por Usuario */
+.barra-segmentada-consumos-tc {
+  width: 100%;
+  height: 14px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #F3F4F6;
+  display: flex;
+}
+
+.segmento-barra-tc {
+  height: 100%;
+  transition: width 0.4s ease;
+}
+
+.item-grafica-usuario-tc {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #F9FAFB;
+  border: 1px solid #F3F4F6;
+}
+
+.avatar-mini-usuario-tc {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.nombre-usuario-tc {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #1E1F30;
+}
+
+.badge-gastos-conteo {
+  font-size: 0.7rem;
+  color: #6B7280;
+  background: #E5E7EB;
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.monto-usuario-tc {
+  font-size: 0.88rem;
+  color: #1E1F30;
+}
+
+.porcentaje-usuario-tc {
+  font-size: 0.76rem;
+  color: #6B7280;
+  font-weight: 600;
+}
+
+.barra-fondo-mini-tc {
+  width: 100%;
+  height: 6px;
+  border-radius: 4px;
+  background: #E5E7EB;
+  overflow: hidden;
+}
+
+.barra-relleno-mini-tc {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+
+.badge-cantidad-usuarios {
+  font-size: 0.74rem;
+  color: #4E44EB;
+  background: #EEF2FF;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-weight: 700;
+}
+
+.badge-fecha-pago-mini {
+  font-size: 0.72rem;
+  color: #059669;
+  background: #ECFDF5;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-weight: 700;
+}
+
+/* Filas de la Tabla de Liquidación */
+.tarjeta-fila-liquidacion-tc {
+  background: #FFFFFF;
+  border: 1.5px solid #ECE8E3;
+  border-radius: 16px;
+  padding: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.tarjeta-fila-liquidacion-tc:hover {
+  border-color: #4E44EB;
+  box-shadow: 0 4px 16px rgba(78, 68, 235, 0.08);
+  transform: translateY(-1px);
+}
+.tarjeta-fila-liquidacion-tc.seleccionada {
+  border-color: #4E44EB;
+  background: #F8F9FE;
+  box-shadow: 0 0 0 3px rgba(78, 68, 235, 0.15);
+}
+
+.avatar-liquidacion-tc {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  font-weight: 800;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+
+.nombre-persona-liquidacion {
+  font-size: 0.95rem;
+  color: #1E1F30;
+  display: block;
+}
+
+.subtexto-persona-liquidacion {
+  font-size: 0.75rem;
+  color: #8E92A4;
+  font-weight: 500;
+}
+
+.etiqueta-debe-pagar {
+  font-size: 0.7rem;
+  color: #6B7280;
+  font-weight: 600;
+  text-transform: uppercase;
+  display: block;
+}
+
+.monto-debe-pagar-valor {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #10B981;
+  letter-spacing: -0.3px;
+}
+
+.footer-fila-liquidacion-tc {
+  border-top: 1px dashed #E5E7EB;
+}
+
+.badge-ver-gastos-tc {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+/* Items de Consumo */
+.tarjeta-item-consumo-tc {
+  background: #FFFFFF;
+  border: 1px solid #ECE8E3;
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+.badge-consumo-usuario-icono {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.82rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.concepto-consumo-tc {
+  font-size: 0.9rem;
+  color: #1E1F30;
+  display: block;
+}
+
+.meta-consumo-tc {
+  font-size: 0.74rem;
+  color: #8E92A4;
+  font-weight: 500;
+}
+
+.badge-miembro-nombre {
+  font-weight: 700;
+}
+
+.monto-consumo-tc {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #F46F5F;
+}
+
+.btn-ver-ticket-mini-tc {
+  background: #EEF2FF;
+  color: #4E44EB;
+  border: 1px solid #C7D2FE;
+  border-radius: 8px;
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+.btn-ver-ticket-mini-tc:hover {
+  background: #4E44EB;
+  color: #FFFFFF;
+}
+
+/* Chips de usuarios */
+.badge-chip-usuario-tc {
+  display: inline-flex;
+  align-items: center;
+  background: #EEF2FF;
+  color: #3730A3;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border: 1px solid #C7D2FE;
+}
+
+.btn-quitar-chip-usuario {
+  background: transparent;
+  border: none;
+  color: #EF4444;
+  margin-left: 6px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+}
+.btn-quitar-chip-usuario:hover {
+  color: #DC2626;
+}
+
+/* Píldoras de selector de usuario en Egresos */
+.bloque-asignacion-usuario-gasto {
+  background: #F9FAFB;
+  border: 1.5px solid #ECE8E3;
+  border-radius: 16px;
+  padding: 12px 14px;
+}
+
+.pildora-usuario-selector {
+  background: #FFFFFF;
+  border: 1.5px solid #E5E7EB;
+  color: #4B5563;
+  border-radius: 20px;
+  padding: 5px 14px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+.pildora-usuario-selector:hover {
+  border-color: #4E44EB;
+  color: #4E44EB;
+}
+.pildora-usuario-selector.activa {
+  background: #4E44EB;
+  border-color: #4E44EB;
+  color: #FFFFFF;
+  box-shadow: 0 4px 12px rgba(78, 68, 235, 0.25);
+}
+
+.alerta-rollover-corte-tc {
+  background: #FFFBEB;
+  border: 1px solid #FCD34D;
+  color: #B45309;
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 0.76rem;
+}
+
+/* Banner Alerta de Pago en Home */
+.alerta-pago-tarjeta-home {
+  background: linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%);
+  border: 1.5px solid #FED7AA;
+  border-radius: 16px;
+  padding: 12px 16px;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.08);
+}
+.alerta-pago-tarjeta-home:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(249, 115, 22, 0.15);
+}
+
+.icono-alerta-tarjeta-home {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.titulo-alerta-tarjeta-home {
+  font-size: 0.9rem;
+  color: #9A3412;
+}
+
+.badge-nombre-tc-home {
+  font-size: 0.7rem;
+  background: rgba(255, 255, 255, 0.85);
+  color: #EA580C;
+  font-weight: 700;
+  border: 1px solid #FED7AA;
+  padding: 1px 6px;
+  border-radius: 8px;
+}
+
+.subtitulo-alerta-tarjeta-home {
+  font-size: 0.76rem;
+  color: #7C2D12;
+}
+
+.btn-ver-liquidacion-home {
+  background: #EA580C;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-ver-liquidacion-home:hover {
+  background: #C2410C;
+}
+
+/* Banner Acceso a Tarjeta Familiar en Home */
+.banner-acceso-tarjeta-familiar {
+  background: #FFFFFF;
+  border: 1.5px solid #ECE8E3;
+  border-radius: 16px;
+  padding: 12px 16px;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+.banner-acceso-tarjeta-familiar:hover {
+  border-color: #4E44EB;
+  box-shadow: 0 6px 18px rgba(78, 68, 235, 0.1);
+  transform: translateY(-1px);
+}
+
+.icono-banner-tc {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #EEF2FF;
+  color: #4E44EB;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+
+.titulo-banner-tc {
+  font-size: 0.92rem;
+  color: #1E1F30;
+  display: block;
+}
+
+.subtitulo-banner-tc {
+  font-size: 0.76rem;
+  color: #8E92A4;
+}
+
+.badge-flecha-banner-tc {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #4E44EB;
+  white-space: nowrap;
+}
+
+
 
 
 

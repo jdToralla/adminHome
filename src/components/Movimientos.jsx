@@ -626,6 +626,11 @@ export default function Movimientos() {
                     <span className="transaccion-categoria-badge">
                       {item.categoria || (esIngreso ? 'Ingreso' : 'Gasto')}
                     </span>
+                    {item.usuarioGasto && (
+                      <span className="transaccion-usuario-badge" style={{ backgroundColor: '#EEF2FF', color: '#4E44EB', padding: '2px 8px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: 700 }}>
+                        <i className="fas fa-user mr-1"></i>{item.usuarioGasto}
+                      </span>
+                    )}
                     <span className="transaccion-fecha-texto">
                       {item.fechaLegible || item.fecha} &bull; {item.hora || ''}
                     </span>
@@ -839,12 +844,33 @@ export default function Movimientos() {
                   </div>
                 )}
 
+                {/* Miembro / Usuario que realizó el gasto */}
+                {itemSeleccionado.usuarioGasto && (
+                  <div className="d-flex justify-content-between p-2 border-bottom">
+                    <span className="text-muted" style={{ fontSize: '0.82rem' }}>Familiar / Usuario</span>
+                    <span className="badge badge-light" style={{ fontSize: '0.8rem', color: '#4E44EB', fontWeight: 700 }}>
+                      <i className="fas fa-user-circle mr-1"></i>{itemSeleccionado.usuarioGasto}
+                    </span>
+                  </div>
+                )}
+
                 {/* Tarjeta de crédito */}
                 {tarjetaTexto && (
                   <div className="d-flex justify-content-between p-2 border-bottom">
                     <span className="text-muted" style={{ fontSize: '0.82rem' }}>Tarjeta</span>
                     <span className="font-weight-bold" style={{ fontSize: '0.82rem' }}>
                       {tarjetaTexto}
+                    </span>
+                  </div>
+                )}
+
+                {/* Fechas de corte y pago del ciclo */}
+                {(itemSeleccionado.fechaCorte || itemSeleccionado.fechaPago) && (
+                  <div className="d-flex justify-content-between p-2 border-bottom">
+                    <span className="text-muted" style={{ fontSize: '0.82rem' }}>Ciclo facturación</span>
+                    <span className="font-weight-bold" style={{ fontSize: '0.8rem', color: '#4E44EB' }}>
+                      {itemSeleccionado.fechaCorte && `Corte: ${itemSeleccionado.fechaCorte}`}
+                      {itemSeleccionado.fechaPago && ` • Pago: ${itemSeleccionado.fechaPago}`}
                     </span>
                   </div>
                 )}

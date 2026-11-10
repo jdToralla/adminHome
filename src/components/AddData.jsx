@@ -1,8 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import _swal from 'sweetalert';
 import { auth, firedb, firebase } from '../firebaseConfig';
 import { subirACloudinary } from '../utils/cloudinary';
+import {
+  formatearAFechaInput,
+  formatearAFechaVisual,
+  determinarCicloGasto
+} from '../utils/tarjetasCredito';
 import VisorImagenModal from './VisorImagenModal';
 import './styles.css';
 
@@ -277,12 +282,99 @@ export default function AddData() {
   const [esRecurrenteGasto, setEsRecurrenteGasto] = useState(false);
   const [frecuenciaGasto, setFrecuenciaGasto] = useState('Mensual');
   const [vencimientoGasto, setVencimientoGasto] = useState('');
-  const [tarjetaCreditoNombre, setTarjetaCreditoNombre] = useState('BAC Credomatic Visa');
   const [cuotasGasto, setCuotasGasto] = useState(1);
-  const [diaCorteGasto, setDiaCorteGasto] = useState('15');
-  const [diaPagoGasto, setDiaPagoGasto] = useState('05');
   const [archivoComprobanteGasto, setArchivoComprobanteGasto] = useState(null);
   const [urlVistaPreviaGasto, setUrlVistaPreviaGasto] = useState(null);
+
+  // ---------------------------------------------------------------------------
+  // 4. ESTADOS PARA TARJETAS DE CRÉDITO FAMILIARES Y USUARIOS ASIGNADOS
+  // ---------------------------------------------------------------------------
+  const [tarjetasDisponibles, setTarjetasDisponibles] = useState([
+    {
+      id: 'default-visa-plata',
+      nombre: 'VISA Plata',
+      cuotasPredeterminadas: 1,
+      fechaCorte: '2026-11-06',
+      fechaPago: '2026-12-01',
+      usuariosInvolucrados: ['Usuario 1', 'Usuario 2', 'Usuario 3']
+    }
+  ]);
+  const [tarjetaSeleccionadaId, setTarjetaSeleccionadaId] = useState('default-visa-plata');
+
+  // En Egresos: ¿Quién realizó el gasto?
+  const [usuarioGasto, setUsuarioGasto] = useState(() => {
+    return localStorage.getItem('ultimo_usuario_gasto') || 'Usuario 1';
+  });
+  const [mostrarInputNuevoUsuario, setMostrarInputNuevoUsuario] = useState(false);
+  const [nuevoUsuarioInline, setNuevoUsuarioInline] = useState('');
+
+  // En Ingresos: Configuración de Tarjeta de Crédito Familiar
+  const [tcIngresoNombre, setTcIngresoNombre] = useState('VISA Plata');
+  const [tcIngresoCuotas, setTcIngresoCuotas] = useState(1);
+  const [tcIngresoFechaCorte, setTcIngresoFechaCorte] = useState('2026-11-06');
+  const [tcIngresoFechaPago, setTcIngresoFechaPago] = useState('2026-12-01');
+  const [tcIngresoUsuarios, setTcIngresoUsuarios] = useState(['Usuario 1', 'Usuario 2', 'Usuario 3']);
+  const [tcIngresoNuevoUsuario, setTcIngresoNuevoUsuario] = useState('');
+
+  // Cargar tarjetas de crédito del usuario
+  useEffect(() => {
+    const idUsuario = localStorage.getItem('currentId');
+    if (!idUsuario) return;
+    const uidNormalizado = parseUserId(idUsuario);
+
+    const cargarTarjetas = async () => {
+      try {
+        const snap = await firedb
+          .collection('tarjetas-credito')
+          .where('idUser', '==', uidNormalizado)
+          .get();
+
+        if (!snap.empty) {
+          const list = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          setTarjetasDisponibles(list);
+          const primera = list[0];
+          setTarjetaSeleccionadaId(primera.id);
+          setTcIngresoNombre(primera.nombre);
+          if (primera.fechaCorte) setTcIngresoFechaCorte(formatearAFechaInput(primera.fechaCorte));
+          if (primera.fechaPago) setTcIngresoFechaPago(formatearAFechaInput(primera.fechaPago));
+          if (primera.usuariosInvolucrados && primera.usuariosInvolucrados.length > 0) {
+            setTcIngresoUsuarios(primera.usuariosInvolucrados);
+          }
+        }
+      } catch (err) {
+        console.warn('Aviso cargando tarjetas en AddData:', err);
+      }
+    };
+
+    cargarTarjetas();
+  }, []);
+
+  // Tarjeta activa seleccionada
+  const tarjetaActualSeleccionada = useMemo(() => {
+    return tarjetasDisponibles.find(t => t.id === tarjetaSeleccionadaId) || tarjetasDisponibles[0] || {
+      id: 'default-visa-plata',
+      nombre: 'VISA Plata',
+      cuotasPredeterminadas: 1,
+      fechaCorte: '2026-11-06',
+      fechaPago: '2026-12-01',
+      usuariosInvolucrados: ['Usuario 1', 'Usuario 2', 'Usuario 3']
+    };
+  }, [tarjetasDisponibles, tarjetaSeleccionadaId]);
+
+  // Lista de usuarios disponibles para asociar al gasto
+  const listaUsuariosDisponibles = useMemo(() => {
+    const usuariosTc = tarjetaActualSeleccionada?.usuariosInvolucrados || [];
+    const base = usuariosTc.length > 0 ? usuariosTc : ['Usuario 1', 'Usuario 2', 'Usuario 3'];
+    if (usuarioGasto && !base.includes(usuarioGasto)) {
+      return [...base, usuarioGasto];
+    }
+    return base;
+  }, [tarjetaActualSeleccionada, usuarioGasto]);
+
+  // Ciclo calculado para el gasto según la fecha seleccionada y la tarjeta
+  const cicloGastoCalculado = useMemo(() => {
+    return determinarCicloGasto(fecha, tarjetaActualSeleccionada);
+  }, [fecha, tarjetaActualSeleccionada]);
 
   // Referencias a los inputs de archivo para Egresos (Cámara y Galería)
   const refInputCamaraGasto = useRef(null);
@@ -419,6 +511,26 @@ export default function AddData() {
       // Clave del mes actual en formato "YYYY-MM" para estadísticas agregadas
       const claveMes = fecha.substring(0, 7);
 
+      // Manejo de Configuración de Tarjeta de Crédito si aplica
+      const esTcIngreso = categoriaSeleccionada === 'Tarjeta de crédito' || cuentaDestino === 'Tarjeta de crédito';
+      let idTarjetaFinal = tarjetaSeleccionadaId;
+      if (esTcIngreso) {
+        idTarjetaFinal = tarjetaSeleccionadaId || `tc_${Date.now()}`;
+        try {
+          await firedb.collection('tarjetas-credito').doc(idTarjetaFinal).set({
+            idUser: parseUserId(idUsuario),
+            nombre: tcIngresoNombre.trim() || 'VISA Plata',
+            cuotasPredeterminadas: parseInt(tcIngresoCuotas, 10) || 1,
+            fechaCorte: tcIngresoFechaCorte,
+            fechaPago: tcIngresoFechaPago,
+            usuariosInvolucrados: tcIngresoUsuarios,
+            actualizadoEn: new Date().toISOString()
+          }, { merge: true });
+        } catch (eCard) {
+          console.warn('Error guardando tarjeta en Firestore:', eCard);
+        }
+      }
+
       // Objeto de la entidad de Ingreso completa
       const entidadIngreso = {
         userId: idUsuario,
@@ -439,6 +551,14 @@ export default function AddData() {
         recurrenceFrequency: esRecurrente ? frecuenciaRecurrencia : null,
         attachmentUrl: urlFinalComprobante,
         impactoPatrimonial: impactoPatrimonial,
+        creditCardConfig: esTcIngreso ? {
+          cardName: tcIngresoNombre.trim(),
+          cardId: idTarjetaFinal,
+          installments: parseInt(tcIngresoCuotas, 10) || 1,
+          closingDate: tcIngresoFechaCorte,
+          paymentDueDate: tcIngresoFechaPago,
+          involvedUsers: tcIngresoUsuarios
+        } : null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -483,7 +603,12 @@ export default function AddData() {
         esRecurrente: esRecurrente,
         estado: estadoTransaccion,
         attachmentUrl: urlFinalComprobante || null,
-        urlComprobante: urlFinalComprobante || null
+        urlComprobante: urlFinalComprobante || null,
+        tarjetaCreditoNombre: esTcIngreso ? tcIngresoNombre.trim() : null,
+        tarjetaCreditoId: esTcIngreso ? idTarjetaFinal : null,
+        fechaCorte: esTcIngreso ? tcIngresoFechaCorte : null,
+        fechaPago: esTcIngreso ? tcIngresoFechaPago : null,
+        usuariosInvolucrados: esTcIngreso ? tcIngresoUsuarios : null
       });
 
       // Recordar la última cuenta utilizada en el almacenamiento local
@@ -577,11 +702,15 @@ export default function AddData() {
       // Clave del mes actual en formato "YYYY-MM" para estadísticas agregadas
       const claveMes = fecha.substring(0, 7);
 
-      // Regla de Flujo de Efectivo:
-      // affectsCashFlow es false si es compra financiada en múltiples cuotas (> 1) o transferencia propia
+      // Regla de Flujo de Efectivo y Ciclo de Tarjeta de Crédito:
       const esTarjetaCredito = cuentaOrigenGasto === 'Tarjeta de crédito' || metodoPagoGasto === 'Tarjeta crédito';
       const cuotasNumero = parseInt(cuotasGasto, 10) || 1;
       const afectaFlujoEfectivo = !esTarjetaCredito || cuotasNumero === 1;
+
+      // Calcular ciclo de facturación (fecha de corte y pago)
+      const cicloAsignado = esTarjetaCredito
+        ? determinarCicloGasto(fecha, tarjetaActualSeleccionada)
+        : null;
 
       // Objeto de la entidad de Gasto completa
       const entidadGasto = {
@@ -603,11 +732,14 @@ export default function AddData() {
         isRecurring: esRecurrenteGasto,
         recurrenceFrequency: esRecurrenteGasto ? frecuenciaGasto : null,
         dueDate: vencimientoGasto || null,
+        usuarioGasto: usuarioGasto || 'Usuario 1',
         creditCardDetails: esTarjetaCredito ? {
-          cardName: tarjetaCreditoNombre,
+          cardName: tarjetaActualSeleccionada.nombre,
+          cardId: tarjetaActualSeleccionada.id,
           installments: cuotasNumero,
-          closingDate: diaCorteGasto || null,
-          paymentDueDate: diaPagoGasto || null
+          closingDate: cicloAsignado?.fechaCorte || null,
+          paymentDueDate: cicloAsignado?.fechaPago || null,
+          cycleKey: cicloAsignado?.claveCiclo || null
         } : null,
         affectsCashFlow: afectaFlujoEfectivo,
         createdAt: new Date().toISOString(),
@@ -661,10 +793,17 @@ export default function AddData() {
         estado: estadoGasto,
         cuotas: esTarjetaCredito ? cuotasNumero : 1,
         attachmentUrl: urlFinalComprobante || null,
-        urlComprobante: urlFinalComprobante || null
+        urlComprobante: urlFinalComprobante || null,
+        usuarioGasto: usuarioGasto || 'Usuario 1',
+        tarjetaCreditoNombre: esTarjetaCredito ? tarjetaActualSeleccionada.nombre : null,
+        tarjetaCreditoId: esTarjetaCredito ? tarjetaActualSeleccionada.id : null,
+        fechaCorte: cicloAsignado ? cicloAsignado.fechaCorte : null,
+        fechaPago: cicloAsignado ? cicloAsignado.fechaPago : null,
+        claveCiclo: cicloAsignado ? cicloAsignado.claveCiclo : null
       });
 
       // Recordar preferencias en el almacenamiento local para inteligencia de usuario
+      localStorage.setItem('ultimo_usuario_gasto', usuarioGasto);
       localStorage.setItem('ultima_cuenta_gasto', cuentaOrigenGasto);
       localStorage.setItem('ultimo_metodo_pago_gasto', metodoPagoGasto);
       if (comercioGasto.trim()) {
@@ -854,6 +993,157 @@ export default function AddData() {
                 ))}
               </div>
             </div>
+
+            {/* CONFIGURACIÓN DE TARJETA DE CRÉDITO FAMILIAR (En Ingresos) */}
+            {(categoriaSeleccionada === 'Tarjeta de crédito' || cuentaDestino === 'Tarjeta de crédito') && (
+              <div className="tarjeta-credito-especial-bloque mb-3">
+                <div className="cabecera-tarjeta-credito-especial">
+                  <span className="titulo-tarjeta-credito-especial">
+                    <i className="fas fa-credit-card mr-1"></i> Configuración de Tarjeta de Crédito Familiar
+                  </span>
+                  <span className="badge-finanzas-tc">Tarjeta y Miembros</span>
+                </div>
+
+                {/* Nombre de la tarjeta utilizada */}
+                <div className="mb-2">
+                  <label className="etiqueta-campo-finanzia" style={{ color: '#3730A3' }}>
+                    Nombre de la tarjeta utilizada
+                  </label>
+                  <input
+                    type="text"
+                    className="campo-formulario-finanzia"
+                    placeholder="Ej. VISA Plata, BAC Credomatic Visa..."
+                    value={tcIngresoNombre}
+                    onChange={(e) => setTcIngresoNombre(e.target.value)}
+                    required
+                  />
+                </div>
+
+                {/* Usuarios involucrados (aparecerán en la lista desplegable) */}
+                <div className="mb-2">
+                  <label className="etiqueta-campo-finanzia d-flex justify-content-between align-items-center" style={{ color: '#3730A3' }}>
+                    <span>Usuarios involucrados (aparecerán en la lista desplegable)</span>
+                    <span className="badge badge-light" style={{ fontSize: '0.72rem' }}>
+                      {tcIngresoUsuarios.length} miembros
+                    </span>
+                  </label>
+
+                  {/* Chips de usuarios */}
+                  <div className="d-flex flex-wrap gap-2 mb-2 p-2 bg-white rounded border">
+                    {tcIngresoUsuarios.map((u) => (
+                      <span key={u} className="badge-chip-usuario-tc">
+                        <i className="fas fa-user mr-1 text-primary"></i>
+                        {u}
+                        <button
+                          type="button"
+                          className="btn-quitar-chip-usuario"
+                          onClick={() => {
+                            if (tcIngresoUsuarios.length <= 1) {
+                              _swal('Mínimo 1 usuario', 'Debes dejar al menos un usuario asignado a la tarjeta.', 'info');
+                              return;
+                            }
+                            setTcIngresoUsuarios(tcIngresoUsuarios.filter(item => item !== u));
+                          }}
+                          title={`Quitar a ${u}`}
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* Input para agregar usuario */}
+                  <div className="d-flex gap-2">
+                    <input
+                      type="text"
+                      className="campo-formulario-finanzia"
+                      placeholder="Escribe nuevo usuario (ej. Usuario 1, Usuario 2, Usuario 3)..."
+                      value={tcIngresoNuevoUsuario}
+                      onChange={(e) => setTcIngresoNuevoUsuario(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const u = tcIngresoNuevoUsuario.trim();
+                          if (u && !tcIngresoUsuarios.includes(u)) {
+                            setTcIngresoUsuarios([...tcIngresoUsuarios, u]);
+                            setTcIngresoNuevoUsuario('');
+                          }
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-primary"
+                      style={{ background: '#4E44EB', borderColor: '#4E44EB', borderRadius: '12px', whiteSpace: 'nowrap' }}
+                      onClick={() => {
+                        const u = tcIngresoNuevoUsuario.trim();
+                        if (!u) return;
+                        if (tcIngresoUsuarios.includes(u)) {
+                          _swal('Usuario existente', 'Ese usuario ya está agregado.', 'warning');
+                          return;
+                        }
+                        setTcIngresoUsuarios([...tcIngresoUsuarios, u]);
+                        setTcIngresoNuevoUsuario('');
+                      }}
+                    >
+                      <i className="fas fa-plus mr-1"></i> Agregar
+                    </button>
+                  </div>
+                </div>
+
+                {/* Número de cuotas, Fecha de corte y Fecha de pago */}
+                <div className="row g-2 mb-2">
+                  <div className="col-12 col-sm-4 mb-2 mb-sm-0">
+                    <label className="etiqueta-campo-finanzia" style={{ color: '#3730A3' }}>
+                      Número de cuotas
+                    </label>
+                    <select
+                      className="campo-formulario-finanzia"
+                      value={tcIngresoCuotas}
+                      onChange={(e) => setTcIngresoCuotas(parseInt(e.target.value, 10))}
+                    >
+                      <option value={1}>1 pago al contado</option>
+                      <option value={3}>3 cuotas</option>
+                      <option value={6}>6 cuotas</option>
+                      <option value={10}>10 cuotas</option>
+                      <option value={12}>12 cuotas (1 año)</option>
+                    </select>
+                  </div>
+
+                  <div className="col-6 col-sm-4">
+                    <label className="etiqueta-campo-finanzia" style={{ color: '#3730A3' }}>
+                      Día de corte (fecha)
+                    </label>
+                    <input
+                      type="date"
+                      className="campo-formulario-finanzia"
+                      value={tcIngresoFechaCorte}
+                      onChange={(e) => setTcIngresoFechaCorte(e.target.value)}
+                      required
+                    />
+                    <small className="text-muted" style={{ fontSize: '0.7rem' }}>
+                      Ej. {formatearAFechaVisual(tcIngresoFechaCorte)}
+                    </small>
+                  </div>
+
+                  <div className="col-6 col-sm-4">
+                    <label className="etiqueta-campo-finanzia" style={{ color: '#3730A3' }}>
+                      Fecha de pago
+                    </label>
+                    <input
+                      type="date"
+                      className="campo-formulario-finanzia"
+                      value={tcIngresoFechaPago}
+                      onChange={(e) => setTcIngresoFechaPago(e.target.value)}
+                      required
+                    />
+                    <small className="text-muted" style={{ fontSize: '0.7rem' }}>
+                      Ej. {formatearAFechaVisual(tcIngresoFechaPago)}
+                    </small>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* 4. FECHA Y HORA (Precargadas en automático con espaciado amplio de icono) */}
             <div className="row g-2 mb-3">
@@ -1244,6 +1534,78 @@ export default function AddData() {
               </div>
             </div>
 
+            {/* SECCIÓN DE USUARIOS: ¿QUIÉN REALIZÓ ESTE GASTO? (Familiar) */}
+            <div className="bloque-asignacion-usuario-gasto mb-3">
+              <div className="d-flex justify-content-between align-items-center mb-1">
+                <label className="etiqueta-campo-finanzia mb-0">
+                  <i className="fas fa-user-tag mr-1" style={{ color: '#4E44EB' }}></i>
+                  ¿Quién realizó este gasto? (Familiar)
+                </label>
+                <button
+                  type="button"
+                  className="btn btn-xs btn-link p-0"
+                  style={{ fontSize: '0.75rem', color: '#4E44EB', fontWeight: 700, textDecoration: 'none' }}
+                  onClick={() => setMostrarInputNuevoUsuario(!mostrarInputNuevoUsuario)}
+                >
+                  {mostrarInputNuevoUsuario ? '✕ Cancelar' : '+ Agregar familiar'}
+                </button>
+              </div>
+
+              {/* Selector de píldoras de usuarios */}
+              <div className="d-flex flex-wrap gap-2 mb-1">
+                {listaUsuariosDisponibles.map((u) => (
+                  <button
+                    key={u}
+                    type="button"
+                    className={`pildora-usuario-selector ${usuarioGasto === u ? 'activa' : ''}`}
+                    onClick={() => setUsuarioGasto(u)}
+                  >
+                    <i className="fas fa-user-circle mr-1"></i>
+                    {u}
+                  </button>
+                ))}
+              </div>
+
+              {/* Formulario rápido para agregar familiar */}
+              {mostrarInputNuevoUsuario && (
+                <div className="d-flex gap-2 mt-2 p-2 bg-light rounded">
+                  <input
+                    type="text"
+                    className="campo-formulario-finanzia"
+                    placeholder="Nombre del familiar (ej. Usuario 4, Papá)..."
+                    value={nuevoUsuarioInline}
+                    onChange={(e) => setNuevoUsuarioInline(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const n = nuevoUsuarioInline.trim();
+                        if (n) {
+                          setUsuarioGasto(n);
+                          setNuevoUsuarioInline('');
+                          setMostrarInputNuevoUsuario(false);
+                        }
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-primary"
+                    style={{ background: '#4E44EB', borderColor: '#4E44EB', borderRadius: '10px', whiteSpace: 'nowrap' }}
+                    onClick={() => {
+                      const n = nuevoUsuarioInline.trim();
+                      if (n) {
+                        setUsuarioGasto(n);
+                        setNuevoUsuarioInline('');
+                        setMostrarInputNuevoUsuario(false);
+                      }
+                    }}
+                  >
+                    Asignar
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* 2. CAMPO DESCRIPCIÓN O CONCEPTO (Manual) */}
             <div className="mb-3">
               <div className="d-flex justify-content-between align-items-center mb-1">
@@ -1399,7 +1761,7 @@ export default function AddData() {
                   <div className="tarjeta-credito-especial-bloque">
                     <div className="cabecera-tarjeta-credito-especial">
                       <span className="titulo-tarjeta-credito-especial">
-                        <i className="fas fa-credit-card"></i> Configuración de Tarjeta de Crédito
+                        <i className="fas fa-credit-card"></i> Configuración de Tarjeta de Crédito Familiar
                       </span>
                       <span className="badge-finanzas-tc">Control de Deuda</span>
                     </div>
@@ -1407,13 +1769,15 @@ export default function AddData() {
                     <div className="row g-2 mb-2">
                       <div className="col-12 col-sm-6 mb-2 mb-sm-0">
                         <label className="etiqueta-campo-finanzia" style={{ color: '#3730A3' }}>Tarjeta utilizada</label>
-                        <input
-                          type="text"
-                          placeholder="Ej. BAC Credomatic Visa, BI Mastercard..."
+                        <select
                           className="campo-formulario-finanzia"
-                          value={tarjetaCreditoNombre}
-                          onChange={(e) => setTarjetaCreditoNombre(e.target.value)}
-                        />
+                          value={tarjetaSeleccionadaId}
+                          onChange={(e) => setTarjetaSeleccionadaId(e.target.value)}
+                        >
+                          {tarjetasDisponibles.map(t => (
+                            <option key={t.id} value={t.id}>💳 {t.nombre}</option>
+                          ))}
+                        </select>
                       </div>
 
                       <div className="col-12 col-sm-6">
@@ -1437,38 +1801,36 @@ export default function AddData() {
 
                     <div className="row g-2">
                       <div className="col-12 col-sm-6 mb-2 mb-sm-0">
-                        <label className="etiqueta-campo-finanzia" style={{ color: '#3730A3' }}>Día de corte mensual</label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="31"
-                          placeholder="Ej. 15"
-                          className="campo-formulario-finanzia"
-                          value={diaCorteGasto}
-                          onChange={(e) => setDiaCorteGasto(e.target.value)}
-                        />
+                        <label className="etiqueta-campo-finanzia" style={{ color: '#3730A3' }}>
+                          Fecha de corte aplicada
+                        </label>
+                        <div className="p-2 bg-white rounded border" style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1E1F30' }}>
+                          📅 {cicloGastoCalculado.corteVisual}
+                        </div>
                       </div>
 
                       <div className="col-12 col-sm-6">
-                        <label className="etiqueta-campo-finanzia" style={{ color: '#3730A3' }}>Día límite de pago</label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="31"
-                          placeholder="Ej. 05"
-                          className="campo-formulario-finanzia"
-                          value={diaPagoGasto}
-                          onChange={(e) => setDiaPagoGasto(e.target.value)}
-                        />
+                        <label className="etiqueta-campo-finanzia" style={{ color: '#3730A3' }}>
+                          Fecha de pago asignada
+                        </label>
+                        <div className="p-2 bg-white rounded border" style={{ fontSize: '0.85rem', fontWeight: 700, color: '#4E44EB' }}>
+                          💳 {cicloGastoCalculado.pagoVisual}
+                        </div>
                       </div>
                     </div>
 
-                    <div className="mt-2" style={{ fontSize: '0.74rem', color: '#4338CA' }}>
-                      <i className="fas fa-info-circle mr-1"></i>
-                      {cuotasGasto > 1
-                        ? `Compra diferida: cada cuota mensual será de aprox. Q ${(parseFloat(monto || 0) / cuotasGasto).toFixed(2)}.`
-                        : 'Pago al contado: el saldo impactará en tu estado de cuenta del mes en curso.'}
-                    </div>
+                    {/* Alerta de traslado al siguiente ciclo si el gasto es posterior a la fecha de corte */}
+                    {cicloGastoCalculado.esSiguienteCiclo ? (
+                      <div className="alerta-rollover-corte-tc mt-2">
+                        <i className="fas fa-info-circle mr-1"></i>
+                        <strong>Aviso de corte:</strong> Este gasto ({formatearAFechaVisual(fecha)}) se realizó después de la fecha de corte configurada. Se asignó automáticamente al próximo ciclo con <strong>pago el {cicloGastoCalculado.pagoVisual}</strong>.
+                      </div>
+                    ) : (
+                      <div className="mt-2" style={{ fontSize: '0.74rem', color: '#4338CA' }}>
+                        <i className="fas fa-check-circle mr-1"></i>
+                        Este gasto entra en el ciclo actual con límite de pago el <strong>{cicloGastoCalculado.pagoVisual}</strong>.
+                      </div>
+                    )}
                   </div>
                 )}
 

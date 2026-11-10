@@ -241,6 +241,21 @@ export default function NavegacionInferior() {
 
           {/* Opciones de Ajustes */}
           <div className="d-flex flex-column gap-2 mb-4">
+            <div
+              className="d-flex justify-content-between align-items-center p-2 border-bottom"
+              style={{ cursor: 'pointer', background: '#F8F9FE', borderRadius: '10px' }}
+              onClick={() => {
+                setMostrarModalAjustes(false);
+                historial.push('/tarjeta-familiar');
+              }}
+            >
+              <span style={{ fontSize: '0.85rem', color: '#1E1F30', fontWeight: 600 }}>
+                <i className="fas fa-credit-card mr-2" style={{ color: '#4E44EB' }}></i> Tarjeta Familiar y Miembros
+              </span>
+              <span style={{ fontSize: '0.82rem', color: '#4E44EB', fontWeight: 700 }}>
+                Ver y Configurar <i className="fas fa-chevron-right ml-1"></i>
+              </span>
+            </div>
             <div className="d-flex justify-content-between align-items-center p-2 border-bottom">
               <span style={{ fontSize: '0.85rem', color: '#4B5563', fontWeight: 600 }}>
                 <i className="fas fa-money-bill-wave mr-2" style={{ color: '#4E44EB' }}></i> Moneda predeterminada
