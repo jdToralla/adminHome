@@ -196,7 +196,7 @@ export default function Home() {
       });
       setSaldoHistoricoTotal(totalIngresos - totalEgresos);
 
-      // 4. Consultar tarjeta de crédito familiar para alertas de fecha de pago
+      // 4. Consultar tarjeta de crédito para alertas de fecha de pago
       try {
         const snapTarjetas = await firedb
           .collection('tarjetas-credito')
@@ -206,32 +206,44 @@ export default function Home() {
 
         if (!snapTarjetas.empty) {
           const tcData = { id: snapTarjetas.docs[0].id, ...snapTarjetas.docs[0].data() };
-          const fechaPagoBase = tcData.fechaPago || '2026-12-01';
-          const infoAlerta = evaluarEstadoPago(fechaPagoBase);
+          // Validar que el usuario tenga activo el switch de Tarjeta de Crédito
+          const tcHabilitada = tcData.habilitarTarjeta !== false && tcData.activa !== false;
 
-          // Calcular consumos de la tarjeta en los movimientos cargados
-          const gastosTc = itemsTotales.filter(m => (
-            m.tipo === 1 && (
-              m.tarjetaCreditoId === tcData.id ||
-              m.tarjetaCreditoNombre === tcData.nombre ||
-              m.cuentaOrigen === 'Tarjeta de crédito' ||
-              m.metodoPago === 'Tarjeta crédito'
-            )
-          ));
-          const totalGastosTc = gastosTc.reduce((acc, m) => acc + (parseFloat(m.cantidad) || 0), 0);
+          if (tcHabilitada) {
+            const fechaPagoBase = tcData.fechaPago || '2026-12-01';
+            const infoAlerta = evaluarEstadoPago(fechaPagoBase);
 
-          setAlertaTarjeta({
-            id: tcData.id,
-            nombre: tcData.nombre || 'VISA Plata',
-            fechaPago: fechaPagoBase,
-            fechaPagoVisual: formatearAFechaVisual(fechaPagoBase),
-            totalCiclo: totalGastosTc,
-            cantidadGastos: gastosTc.length,
-            ...infoAlerta
-          });
+            // Calcular consumos de la tarjeta en los movimientos cargados
+            const gastosTc = itemsTotales.filter(m => (
+              m.tipo === 1 && (
+                m.tarjetaCreditoId === tcData.id ||
+                m.tarjetaCreditoNombre === tcData.nombre ||
+                m.cuentaOrigen === 'Tarjeta de crédito' ||
+                m.metodoPago === 'Tarjeta crédito'
+              )
+            ));
+            const totalGastosTc = gastosTc.reduce((acc, m) => acc + (parseFloat(m.cantidad) || 0), 0);
+
+            setAlertaTarjeta({
+              id: tcData.id,
+              nombre: tcData.nombre || 'Tarjeta de Crédito',
+              habilitarTarjeta: true,
+              esFamiliar: tcData.esFamiliar === true,
+              fechaPago: fechaPagoBase,
+              fechaPagoVisual: formatearAFechaVisual(fechaPagoBase),
+              totalCiclo: totalGastosTc,
+              cantidadGastos: gastosTc.length,
+              ...infoAlerta
+            });
+          } else {
+            setAlertaTarjeta(null);
+          }
+        } else {
+          setAlertaTarjeta(null);
         }
       } catch (errTc) {
         console.warn('Aviso leyendo tarjetas en Home:', errTc);
+        setAlertaTarjeta(null);
       }
     } catch (error) {
       console.error('Error al cargar datos del Home:', error);
@@ -570,9 +582,9 @@ export default function Home() {
       </div> */}
 
       {/* =============================================================== */}
-      {/* 2. ALERTA NOTIFICACIÓN DE PAGO DE TARJETA FAMILIAR              */}
+      {/* 2. ALERTA NOTIFICACIÓN DE PAGO DE TARJETA (Solo si está activa) */}
       {/* =============================================================== */}
-      {alertaTarjeta && (
+      {alertaTarjeta && alertaTarjeta.habilitarTarjeta && (
         <div
           className="alerta-pago-tarjeta-home mb-3"
           onClick={() => historial.push(`/tarjeta-familiar?tarjeta=${alertaTarjeta.id}`)}
@@ -606,7 +618,7 @@ export default function Home() {
             </div>
 
             <button type="button" className="btn-ver-liquidacion-home">
-              Ver liquidación <i className="fas fa-chevron-right ml-1"></i>
+              {alertaTarjeta.esFamiliar ? 'Ver liquidación' : 'Ver estado'} <i className="fas fa-chevron-right ml-1"></i>
             </button>
           </div>
         </div>
@@ -636,29 +648,35 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ACCESO RÁPIDO: TARJETA FAMILIAR */}
-      <div
-        className="banner-acceso-tarjeta-familiar mb-3"
-        onClick={() => historial.push('/tarjeta-familiar')}
-        style={{ cursor: 'pointer' }}
-      >
-        <div className="d-flex align-items-center justify-content-between">
-          <div className="d-flex align-items-center gap-2">
-            <div className="icono-banner-tc">
-              <i className="fas fa-credit-card"></i>
-            </div>
-            <div>
-              <strong className="titulo-banner-tc">Tarjeta de Crédito Familiar</strong>
-              <div className="subtitulo-banner-tc">
-                Ver cuánto debe pagar cada persona de la familia
+      {/* ACCESO RÁPIDO: TARJETA DE CRÉDITO (Solo si el usuario la tiene habilitada) */}
+      {alertaTarjeta && alertaTarjeta.habilitarTarjeta && (
+        <div
+          className="banner-acceso-tarjeta-familiar mb-3"
+          onClick={() => historial.push('/tarjeta-familiar')}
+          style={{ cursor: 'pointer' }}
+        >
+          <div className="d-flex align-items-center justify-content-between">
+            <div className="d-flex align-items-center gap-2">
+              <div className="icono-banner-tc">
+                <i className="fas fa-credit-card"></i>
+              </div>
+              <div>
+                <strong className="titulo-banner-tc">
+                  {alertaTarjeta.esFamiliar ? 'Tarjeta de Crédito Familiar' : 'Tarjeta de Crédito'}
+                </strong>
+                <div className="subtitulo-banner-tc">
+                  {alertaTarjeta.esFamiliar
+                    ? 'Ver cuánto debe pagar cada persona de la familia'
+                    : 'Ver saldo a pagar, fecha de corte y pago'}
+                </div>
               </div>
             </div>
+            <span className="badge-flecha-banner-tc">
+              {alertaTarjeta.esFamiliar ? 'Ver liquidación' : 'Ver tarjeta'} <i className="fas fa-arrow-right ml-1"></i>
+            </span>
           </div>
-          <span className="badge-flecha-banner-tc">
-            Ver liquidación <i className="fas fa-arrow-right ml-1"></i>
-          </span>
         </div>
-      </div>
+      )}
 
       {/* =============================================================== */}
       {/* 4. KPIS FINANCIEROS CLAVE (Ingresos | Egresos | Ahorro)         */}

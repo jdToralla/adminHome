@@ -287,19 +287,11 @@ export default function AddData() {
   const [urlVistaPreviaGasto, setUrlVistaPreviaGasto] = useState(null);
 
   // ---------------------------------------------------------------------------
-  // 4. ESTADOS PARA TARJETAS DE CRÉDITO FAMILIARES Y USUARIOS ASIGNADOS
   // ---------------------------------------------------------------------------
-  const [tarjetasDisponibles, setTarjetasDisponibles] = useState([
-    {
-      id: 'default-visa-plata',
-      nombre: 'VISA Plata',
-      cuotasPredeterminadas: 1,
-      fechaCorte: '2026-11-06',
-      fechaPago: '2026-12-01',
-      usuariosInvolucrados: ['Usuario 1', 'Usuario 2', 'Usuario 3']
-    }
-  ]);
-  const [tarjetaSeleccionadaId, setTarjetaSeleccionadaId] = useState('default-visa-plata');
+  // 4. ESTADOS PARA TARJETAS DE CRÉDITO (PERSONAL O FAMILIAR)
+  // ---------------------------------------------------------------------------
+  const [tarjetasDisponibles, setTarjetasDisponibles] = useState([]);
+  const [tarjetaSeleccionadaId, setTarjetaSeleccionadaId] = useState('');
 
   // En Egresos: ¿Quién realizó el gasto?
   const [usuarioGasto, setUsuarioGasto] = useState(() => {
@@ -308,18 +300,23 @@ export default function AddData() {
   const [mostrarInputNuevoUsuario, setMostrarInputNuevoUsuario] = useState(false);
   const [nuevoUsuarioInline, setNuevoUsuarioInline] = useState('');
 
-  // En Ingresos: Configuración de Tarjeta de Crédito Familiar
+  // En Ingresos: Configuración de Tarjeta de Crédito (Personal o Familiar)
+  const [tcIngresoHabilitarTarjeta, setTcIngresoHabilitarTarjeta] = useState(true);
+  const [tcIngresoEsFamiliar, setTcIngresoEsFamiliar] = useState(false);
   const [tcIngresoNombre, setTcIngresoNombre] = useState('VISA Plata');
   const [tcIngresoCuotas, setTcIngresoCuotas] = useState(1);
   const [tcIngresoFechaCorte, setTcIngresoFechaCorte] = useState('2026-11-06');
   const [tcIngresoFechaPago, setTcIngresoFechaPago] = useState('2026-12-01');
-  const [tcIngresoUsuarios, setTcIngresoUsuarios] = useState(['Usuario 1', 'Usuario 2', 'Usuario 3']);
+  const [tcIngresoUsuarios, setTcIngresoUsuarios] = useState(['Usuario 1', 'Usuario 2']);
   const [tcIngresoNuevoUsuario, setTcIngresoNuevoUsuario] = useState('');
 
   // Cargar tarjetas de crédito del usuario
   useEffect(() => {
     const idUsuario = localStorage.getItem('currentId');
-    if (!idUsuario) return;
+    if (!idUsuario) {
+      setTarjetasDisponibles([]);
+      return;
+    }
     const uidNormalizado = parseUserId(idUsuario);
 
     const cargarTarjetas = async () => {
@@ -334,12 +331,20 @@ export default function AddData() {
           setTarjetasDisponibles(list);
           const primera = list[0];
           setTarjetaSeleccionadaId(primera.id);
-          setTcIngresoNombre(primera.nombre);
+          setTcIngresoNombre(primera.nombre || 'VISA Plata');
+          setTcIngresoHabilitarTarjeta(primera.habilitarTarjeta !== false && primera.activa !== false);
+          setTcIngresoEsFamiliar(primera.esFamiliar === true);
+          if (primera.cuotasPredeterminadas) setTcIngresoCuotas(primera.cuotasPredeterminadas);
           if (primera.fechaCorte) setTcIngresoFechaCorte(formatearAFechaInput(primera.fechaCorte));
           if (primera.fechaPago) setTcIngresoFechaPago(formatearAFechaInput(primera.fechaPago));
           if (primera.usuariosInvolucrados && primera.usuariosInvolucrados.length > 0) {
             setTcIngresoUsuarios(primera.usuariosInvolucrados);
           }
+        } else {
+          setTarjetasDisponibles([]);
+          setTarjetaSeleccionadaId('');
+          setTcIngresoHabilitarTarjeta(false);
+          setTcIngresoEsFamiliar(false);
         }
       } catch (err) {
         console.warn('Aviso cargando tarjetas en AddData:', err);
@@ -351,20 +356,22 @@ export default function AddData() {
 
   // Tarjeta activa seleccionada
   const tarjetaActualSeleccionada = useMemo(() => {
-    return tarjetasDisponibles.find(t => t.id === tarjetaSeleccionadaId) || tarjetasDisponibles[0] || {
-      id: 'default-visa-plata',
-      nombre: 'VISA Plata',
-      cuotasPredeterminadas: 1,
-      fechaCorte: '2026-11-06',
-      fechaPago: '2026-12-01',
-      usuariosInvolucrados: ['Usuario 1', 'Usuario 2', 'Usuario 3']
-    };
+    if (!tarjetasDisponibles || tarjetasDisponibles.length === 0) return null;
+    return tarjetasDisponibles.find(t => t.id === tarjetaSeleccionadaId) || tarjetasDisponibles[0] || null;
   }, [tarjetasDisponibles, tarjetaSeleccionadaId]);
 
-  // Lista de usuarios disponibles para asociar al gasto
+  // Si la tarjeta está habilitada y si es familiar
+  const tcHabilitada = Boolean(
+    tarjetaActualSeleccionada &&
+    tarjetaActualSeleccionada.habilitarTarjeta !== false &&
+    tarjetaActualSeleccionada.activa !== false
+  );
+  const tcEsFamiliar = Boolean(tcHabilitada && tarjetaActualSeleccionada?.esFamiliar === true);
+
+  // Lista de usuarios disponibles para asociar al gasto (solo relevante si es familiar)
   const listaUsuariosDisponibles = useMemo(() => {
     const usuariosTc = tarjetaActualSeleccionada?.usuariosInvolucrados || [];
-    const base = usuariosTc.length > 0 ? usuariosTc : ['Usuario 1', 'Usuario 2', 'Usuario 3'];
+    const base = usuariosTc.length > 0 ? usuariosTc : ['Usuario 1', 'Usuario 2'];
     if (usuarioGasto && !base.includes(usuarioGasto)) {
       return [...base, usuarioGasto];
     }
@@ -519,11 +526,14 @@ export default function AddData() {
         try {
           await firedb.collection('tarjetas-credito').doc(idTarjetaFinal).set({
             idUser: parseUserId(idUsuario),
-            nombre: tcIngresoNombre.trim() || 'VISA Plata',
+            habilitarTarjeta: tcIngresoHabilitarTarjeta,
+            esFamiliar: tcIngresoEsFamiliar,
+            activa: tcIngresoHabilitarTarjeta,
+            nombre: tcIngresoNombre.trim() || 'Tarjeta de Crédito',
             cuotasPredeterminadas: parseInt(tcIngresoCuotas, 10) || 1,
             fechaCorte: tcIngresoFechaCorte,
             fechaPago: tcIngresoFechaPago,
-            usuariosInvolucrados: tcIngresoUsuarios,
+            usuariosInvolucrados: tcIngresoEsFamiliar ? tcIngresoUsuarios : [],
             actualizadoEn: new Date().toISOString()
           }, { merge: true });
         } catch (eCard) {
@@ -554,10 +564,12 @@ export default function AddData() {
         creditCardConfig: esTcIngreso ? {
           cardName: tcIngresoNombre.trim(),
           cardId: idTarjetaFinal,
+          habilitarTarjeta: tcIngresoHabilitarTarjeta,
+          esFamiliar: tcIngresoEsFamiliar,
           installments: parseInt(tcIngresoCuotas, 10) || 1,
           closingDate: tcIngresoFechaCorte,
           paymentDueDate: tcIngresoFechaPago,
-          involvedUsers: tcIngresoUsuarios
+          involvedUsers: tcIngresoEsFamiliar ? tcIngresoUsuarios : []
         } : null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
@@ -732,10 +744,11 @@ export default function AddData() {
         isRecurring: esRecurrenteGasto,
         recurrenceFrequency: esRecurrenteGasto ? frecuenciaGasto : null,
         dueDate: vencimientoGasto || null,
-        usuarioGasto: usuarioGasto || 'Usuario 1',
+        usuarioGasto: tcEsFamiliar ? (usuarioGasto || 'Usuario 1') : null,
         creditCardDetails: esTarjetaCredito ? {
-          cardName: tarjetaActualSeleccionada.nombre,
-          cardId: tarjetaActualSeleccionada.id,
+          cardName: tarjetaActualSeleccionada?.nombre || 'Tarjeta de Crédito',
+          cardId: tarjetaActualSeleccionada?.id || null,
+          esFamiliar: tcEsFamiliar,
           installments: cuotasNumero,
           closingDate: cicloAsignado?.fechaCorte || null,
           paymentDueDate: cicloAsignado?.fechaPago || null,
@@ -794,9 +807,10 @@ export default function AddData() {
         cuotas: esTarjetaCredito ? cuotasNumero : 1,
         attachmentUrl: urlFinalComprobante || null,
         urlComprobante: urlFinalComprobante || null,
-        usuarioGasto: usuarioGasto || 'Usuario 1',
-        tarjetaCreditoNombre: esTarjetaCredito ? tarjetaActualSeleccionada.nombre : null,
-        tarjetaCreditoId: esTarjetaCredito ? tarjetaActualSeleccionada.id : null,
+        usuarioGasto: tcEsFamiliar ? (usuarioGasto || 'Usuario 1') : null,
+        tarjetaCreditoNombre: esTarjetaCredito ? (tarjetaActualSeleccionada?.nombre || null) : null,
+        tarjetaCreditoId: esTarjetaCredito ? (tarjetaActualSeleccionada?.id || null) : null,
+        tarjetaEsFamiliar: esTarjetaCredito ? tcEsFamiliar : false,
         fechaCorte: cicloAsignado ? cicloAsignado.fechaCorte : null,
         fechaPago: cicloAsignado ? cicloAsignado.fechaPago : null,
         claveCiclo: cicloAsignado ? cicloAsignado.claveCiclo : null
@@ -994,154 +1008,209 @@ export default function AddData() {
               </div>
             </div>
 
-            {/* CONFIGURACIÓN DE TARJETA DE CRÉDITO FAMILIAR (En Ingresos) */}
+            {/* CONFIGURACIÓN DE TARJETA DE CRÉDITO (En Ingresos) */}
             {(categoriaSeleccionada === 'Tarjeta de crédito' || cuentaDestino === 'Tarjeta de crédito') && (
               <div className="tarjeta-credito-especial-bloque mb-3">
                 <div className="cabecera-tarjeta-credito-especial">
                   <span className="titulo-tarjeta-credito-especial">
-                    <i className="fas fa-credit-card mr-1"></i> Configuración de Tarjeta de Crédito Familiar
+                    <i className="fas fa-credit-card mr-1"></i> Configuración de Tarjeta de Crédito
                   </span>
-                  <span className="badge-finanzas-tc">Tarjeta y Miembros</span>
+                  <span className="badge-finanzas-tc">
+                    {tcIngresoHabilitarTarjeta ? (tcIngresoEsFamiliar ? 'Familiar' : 'Personal') : 'Inactiva'}
+                  </span>
                 </div>
 
-                {/* Nombre de la tarjeta utilizada */}
-                <div className="mb-2">
-                  <label className="etiqueta-campo-finanzia" style={{ color: '#3730A3' }}>
-                    Nombre de la tarjeta utilizada
-                  </label>
-                  <input
-                    type="text"
-                    className="campo-formulario-finanzia"
-                    placeholder="Ej. VISA Plata, BAC Credomatic Visa..."
-                    value={tcIngresoNombre}
-                    onChange={(e) => setTcIngresoNombre(e.target.value)}
-                    required
-                  />
+                {/* SWITCH 1: Habilitar Tarjeta */}
+                <div className="bloque-switch-finanzia mb-2 p-2 bg-white rounded border d-flex justify-content-between align-items-center">
+                  <div>
+                    <strong style={{ fontSize: '0.85rem', color: '#1E1F30' }}>Habilitar seguimiento de Tarjeta</strong>
+                    <p className="mb-0 text-muted" style={{ fontSize: '0.73rem' }}>
+                      Activa alertas de pago, fechas de corte y cálculo de cuotas.
+                    </p>
+                  </div>
+                  <div className="custom-control custom-switch">
+                    <input
+                      type="checkbox"
+                      className="custom-control-input"
+                      id="switchHabilitarTcIngreso"
+                      checked={tcIngresoHabilitarTarjeta}
+                      onChange={(e) => setTcIngresoHabilitarTarjeta(e.target.checked)}
+                    />
+                    <label className="custom-control-label" htmlFor="switchHabilitarTcIngreso"></label>
+                  </div>
                 </div>
 
-                {/* Usuarios involucrados (aparecerán en la lista desplegable) */}
-                <div className="mb-2">
-                  <label className="etiqueta-campo-finanzia d-flex justify-content-between align-items-center" style={{ color: '#3730A3' }}>
-                    <span>Usuarios involucrados (aparecerán en la lista desplegable)</span>
-                    <span className="badge badge-light" style={{ fontSize: '0.72rem' }}>
-                      {tcIngresoUsuarios.length} miembros
-                    </span>
-                  </label>
+                {/* SWITCH 2: ¿Es Familiar / Compartida? (Solo si el Switch 1 está activo) */}
+                {tcIngresoHabilitarTarjeta && (
+                  <div className="bloque-switch-finanzia mb-3 p-2 bg-white rounded border d-flex justify-content-between align-items-center">
+                    <div>
+                      <strong style={{ fontSize: '0.85rem', color: '#1E1F30' }}>¿Es Tarjeta Familiar / Compartida?</strong>
+                      <p className="mb-0 text-muted" style={{ fontSize: '0.73rem' }}>
+                        Permite asignar gastos a diferentes familiares y ver cuánto debe pagar cada uno.
+                      </p>
+                    </div>
+                    <div className="custom-control custom-switch">
+                      <input
+                        type="checkbox"
+                        className="custom-control-input"
+                        id="switchFamiliarTcIngreso"
+                        checked={tcIngresoEsFamiliar}
+                        onChange={(e) => setTcIngresoEsFamiliar(e.target.checked)}
+                      />
+                      <label className="custom-control-label" htmlFor="switchFamiliarTcIngreso"></label>
+                    </div>
+                  </div>
+                )}
 
-                  {/* Chips de usuarios */}
-                  <div className="d-flex flex-wrap gap-2 mb-2 p-2 bg-white rounded border">
-                    {tcIngresoUsuarios.map((u) => (
-                      <span key={u} className="badge-chip-usuario-tc">
-                        <i className="fas fa-user mr-1 text-primary"></i>
-                        {u}
-                        <button
-                          type="button"
-                          className="btn-quitar-chip-usuario"
-                          onClick={() => {
-                            if (tcIngresoUsuarios.length <= 1) {
-                              _swal('Mínimo 1 usuario', 'Debes dejar al menos un usuario asignado a la tarjeta.', 'info');
-                              return;
-                            }
-                            setTcIngresoUsuarios(tcIngresoUsuarios.filter(item => item !== u));
-                          }}
-                          title={`Quitar a ${u}`}
+                {tcIngresoHabilitarTarjeta && (
+                  <>
+                    {/* Nombre de la tarjeta utilizada */}
+                    <div className="mb-2">
+                      <label className="etiqueta-campo-finanzia" style={{ color: '#3730A3' }}>
+                        Nombre de la tarjeta utilizada
+                      </label>
+                      <input
+                        type="text"
+                        className="campo-formulario-finanzia"
+                        placeholder="Ej. VISA Plata, BAC Credomatic Visa..."
+                        value={tcIngresoNombre}
+                        onChange={(e) => setTcIngresoNombre(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    {/* Número de cuotas, Fecha de corte y Fecha de pago */}
+                    <div className="row g-2 mb-2">
+                      <div className="col-12 col-sm-4 mb-2 mb-sm-0">
+                        <label className="etiqueta-campo-finanzia" style={{ color: '#3730A3' }}>
+                          Número de cuotas
+                        </label>
+                        <select
+                          className="campo-formulario-finanzia"
+                          value={tcIngresoCuotas}
+                          onChange={(e) => setTcIngresoCuotas(parseInt(e.target.value, 10))}
                         >
-                          ✕
-                        </button>
-                      </span>
-                    ))}
-                  </div>
+                          <option value={1}>1 pago al contado</option>
+                          <option value={3}>3 cuotas</option>
+                          <option value={6}>6 cuotas</option>
+                          <option value={10}>10 cuotas</option>
+                          <option value={12}>12 cuotas (1 año)</option>
+                        </select>
+                      </div>
 
-                  {/* Input para agregar usuario */}
-                  <div className="d-flex gap-2">
-                    <input
-                      type="text"
-                      className="campo-formulario-finanzia"
-                      placeholder="Escribe nuevo usuario (ej. Usuario 1, Usuario 2, Usuario 3)..."
-                      value={tcIngresoNuevoUsuario}
-                      onChange={(e) => setTcIngresoNuevoUsuario(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          const u = tcIngresoNuevoUsuario.trim();
-                          if (u && !tcIngresoUsuarios.includes(u)) {
-                            setTcIngresoUsuarios([...tcIngresoUsuarios, u]);
-                            setTcIngresoNuevoUsuario('');
-                          }
-                        }
-                      }}
-                    />
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-primary"
-                      style={{ background: '#4E44EB', borderColor: '#4E44EB', borderRadius: '12px', whiteSpace: 'nowrap' }}
-                      onClick={() => {
-                        const u = tcIngresoNuevoUsuario.trim();
-                        if (!u) return;
-                        if (tcIngresoUsuarios.includes(u)) {
-                          _swal('Usuario existente', 'Ese usuario ya está agregado.', 'warning');
-                          return;
-                        }
-                        setTcIngresoUsuarios([...tcIngresoUsuarios, u]);
-                        setTcIngresoNuevoUsuario('');
-                      }}
-                    >
-                      <i className="fas fa-plus mr-1"></i> Agregar
-                    </button>
-                  </div>
-                </div>
+                      <div className="col-6 col-sm-4">
+                        <label className="etiqueta-campo-finanzia" style={{ color: '#3730A3' }}>
+                          Día de corte (fecha)
+                        </label>
+                        <input
+                          type="date"
+                          className="campo-formulario-finanzia"
+                          value={tcIngresoFechaCorte}
+                          onChange={(e) => setTcIngresoFechaCorte(e.target.value)}
+                          required
+                        />
+                        <small className="text-muted" style={{ fontSize: '0.7rem' }}>
+                          Ej. {formatearAFechaVisual(tcIngresoFechaCorte)}
+                        </small>
+                      </div>
 
-                {/* Número de cuotas, Fecha de corte y Fecha de pago */}
-                <div className="row g-2 mb-2">
-                  <div className="col-12 col-sm-4 mb-2 mb-sm-0">
-                    <label className="etiqueta-campo-finanzia" style={{ color: '#3730A3' }}>
-                      Número de cuotas
-                    </label>
-                    <select
-                      className="campo-formulario-finanzia"
-                      value={tcIngresoCuotas}
-                      onChange={(e) => setTcIngresoCuotas(parseInt(e.target.value, 10))}
-                    >
-                      <option value={1}>1 pago al contado</option>
-                      <option value={3}>3 cuotas</option>
-                      <option value={6}>6 cuotas</option>
-                      <option value={10}>10 cuotas</option>
-                      <option value={12}>12 cuotas (1 año)</option>
-                    </select>
-                  </div>
+                      <div className="col-6 col-sm-4">
+                        <label className="etiqueta-campo-finanzia" style={{ color: '#3730A3' }}>
+                          Fecha de pago
+                        </label>
+                        <input
+                          type="date"
+                          className="campo-formulario-finanzia"
+                          value={tcIngresoFechaPago}
+                          onChange={(e) => setTcIngresoFechaPago(e.target.value)}
+                          required
+                        />
+                        <small className="text-muted" style={{ fontSize: '0.7rem' }}>
+                          Ej. {formatearAFechaVisual(tcIngresoFechaPago)}
+                        </small>
+                      </div>
+                    </div>
 
-                  <div className="col-6 col-sm-4">
-                    <label className="etiqueta-campo-finanzia" style={{ color: '#3730A3' }}>
-                      Día de corte (fecha)
-                    </label>
-                    <input
-                      type="date"
-                      className="campo-formulario-finanzia"
-                      value={tcIngresoFechaCorte}
-                      onChange={(e) => setTcIngresoFechaCorte(e.target.value)}
-                      required
-                    />
-                    <small className="text-muted" style={{ fontSize: '0.7rem' }}>
-                      Ej. {formatearAFechaVisual(tcIngresoFechaCorte)}
-                    </small>
-                  </div>
+                    {/* Usuarios involucrados: SOLO si tcIngresoEsFamiliar es true */}
+                    {tcIngresoEsFamiliar ? (
+                      <div className="mb-2">
+                        <label className="etiqueta-campo-finanzia d-flex justify-content-between align-items-center" style={{ color: '#3730A3' }}>
+                          <span>Usuarios involucrados (aparecerán en la lista desplegable)</span>
+                          <span className="badge badge-light" style={{ fontSize: '0.72rem' }}>
+                            {tcIngresoUsuarios.length} miembros
+                          </span>
+                        </label>
 
-                  <div className="col-6 col-sm-4">
-                    <label className="etiqueta-campo-finanzia" style={{ color: '#3730A3' }}>
-                      Fecha de pago
-                    </label>
-                    <input
-                      type="date"
-                      className="campo-formulario-finanzia"
-                      value={tcIngresoFechaPago}
-                      onChange={(e) => setTcIngresoFechaPago(e.target.value)}
-                      required
-                    />
-                    <small className="text-muted" style={{ fontSize: '0.7rem' }}>
-                      Ej. {formatearAFechaVisual(tcIngresoFechaPago)}
-                    </small>
-                  </div>
-                </div>
+                        {/* Chips de usuarios */}
+                        <div className="d-flex flex-wrap gap-2 mb-2 p-2 bg-white rounded border">
+                          {tcIngresoUsuarios.map((u) => (
+                            <span key={u} className="badge-chip-usuario-tc">
+                              <i className="fas fa-user mr-1 text-primary"></i>
+                              {u}
+                              <button
+                                type="button"
+                                className="btn-quitar-chip-usuario"
+                                onClick={() => {
+                                  if (tcIngresoUsuarios.length <= 1) {
+                                    _swal('Mínimo 1 usuario', 'Debes dejar al menos un usuario asignado a la tarjeta.', 'info');
+                                    return;
+                                  }
+                                  setTcIngresoUsuarios(tcIngresoUsuarios.filter(item => item !== u));
+                                }}
+                                title={`Quitar a ${u}`}
+                              >
+                                ✕
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+
+                        {/* Input para agregar usuario */}
+                        <div className="d-flex gap-2">
+                          <input
+                            type="text"
+                            className="campo-formulario-finanzia"
+                            placeholder="Escribe nuevo usuario (ej. Usuario 1, Usuario 2)..."
+                            value={tcIngresoNuevoUsuario}
+                            onChange={(e) => setTcIngresoNuevoUsuario(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                const u = tcIngresoNuevoUsuario.trim();
+                                if (u && !tcIngresoUsuarios.includes(u)) {
+                                  setTcIngresoUsuarios([...tcIngresoUsuarios, u]);
+                                  setTcIngresoNuevoUsuario('');
+                                }
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-primary"
+                            style={{ background: '#4E44EB', borderColor: '#4E44EB', borderRadius: '12px', whiteSpace: 'nowrap' }}
+                            onClick={() => {
+                              const u = tcIngresoNuevoUsuario.trim();
+                              if (!u) return;
+                              if (tcIngresoUsuarios.includes(u)) {
+                                _swal('Usuario existente', 'Ese usuario ya está agregado.', 'warning');
+                                return;
+                              }
+                              setTcIngresoUsuarios([...tcIngresoUsuarios, u]);
+                              setTcIngresoNuevoUsuario('');
+                            }}
+                          >
+                            <i className="fas fa-plus mr-1"></i> Agregar
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-2 mb-2 bg-light rounded text-muted" style={{ fontSize: '0.78rem' }}>
+                        <i className="fas fa-info-circle mr-1 text-primary"></i>
+                        Tarjeta configurada como <strong>personal</strong>. No se requiere lista de familiares.
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             )}
 
@@ -1534,77 +1603,79 @@ export default function AddData() {
               </div>
             </div>
 
-            {/* SECCIÓN DE USUARIOS: ¿QUIÉN REALIZÓ ESTE GASTO? (Familiar) */}
-            <div className="bloque-asignacion-usuario-gasto mb-3">
-              <div className="d-flex justify-content-between align-items-center mb-1">
-                <label className="etiqueta-campo-finanzia mb-0">
-                  <i className="fas fa-user-tag mr-1" style={{ color: '#4E44EB' }}></i>
-                  ¿Quién realizó este gasto? (Familiar)
-                </label>
-                <button
-                  type="button"
-                  className="btn btn-xs btn-link p-0"
-                  style={{ fontSize: '0.75rem', color: '#4E44EB', fontWeight: 700, textDecoration: 'none' }}
-                  onClick={() => setMostrarInputNuevoUsuario(!mostrarInputNuevoUsuario)}
-                >
-                  {mostrarInputNuevoUsuario ? '✕ Cancelar' : '+ Agregar familiar'}
-                </button>
-              </div>
-
-              {/* Selector de píldoras de usuarios */}
-              <div className="d-flex flex-wrap gap-2 mb-1">
-                {listaUsuariosDisponibles.map((u) => (
+            {/* SECCIÓN DE USUARIOS: ¿QUIÉN REALIZÓ ESTE GASTO? (Solo si es Tarjeta Familiar) */}
+            {tcEsFamiliar && (
+              <div className="bloque-asignacion-usuario-gasto mb-3">
+                <div className="d-flex justify-content-between align-items-center mb-1">
+                  <label className="etiqueta-campo-finanzia mb-0">
+                    <i className="fas fa-user-tag mr-1" style={{ color: '#4E44EB' }}></i>
+                    ¿Quién realizó este gasto? (Familiar)
+                  </label>
                   <button
-                    key={u}
                     type="button"
-                    className={`pildora-usuario-selector ${usuarioGasto === u ? 'activa' : ''}`}
-                    onClick={() => setUsuarioGasto(u)}
+                    className="btn btn-xs btn-link p-0"
+                    style={{ fontSize: '0.75rem', color: '#4E44EB', fontWeight: 700, textDecoration: 'none' }}
+                    onClick={() => setMostrarInputNuevoUsuario(!mostrarInputNuevoUsuario)}
                   >
-                    <i className="fas fa-user-circle mr-1"></i>
-                    {u}
+                    {mostrarInputNuevoUsuario ? '✕ Cancelar' : '+ Agregar familiar'}
                   </button>
-                ))}
-              </div>
+                </div>
 
-              {/* Formulario rápido para agregar familiar */}
-              {mostrarInputNuevoUsuario && (
-                <div className="d-flex gap-2 mt-2 p-2 bg-light rounded">
-                  <input
-                    type="text"
-                    className="campo-formulario-finanzia"
-                    placeholder="Nombre del familiar (ej. Usuario 4, Papá)..."
-                    value={nuevoUsuarioInline}
-                    onChange={(e) => setNuevoUsuarioInline(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
+                {/* Selector de píldoras de usuarios */}
+                <div className="d-flex flex-wrap gap-2 mb-1">
+                  {listaUsuariosDisponibles.map((u) => (
+                    <button
+                      key={u}
+                      type="button"
+                      className={`pildora-usuario-selector ${usuarioGasto === u ? 'activa' : ''}`}
+                      onClick={() => setUsuarioGasto(u)}
+                    >
+                      <i className="fas fa-user-circle mr-1"></i>
+                      {u}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Formulario rápido para agregar familiar */}
+                {mostrarInputNuevoUsuario && (
+                  <div className="d-flex gap-2 mt-2 p-2 bg-light rounded">
+                    <input
+                      type="text"
+                      className="campo-formulario-finanzia"
+                      placeholder="Nombre del familiar (ej. Usuario 4, Papá)..."
+                      value={nuevoUsuarioInline}
+                      onChange={(e) => setNuevoUsuarioInline(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const n = nuevoUsuarioInline.trim();
+                          if (n) {
+                            setUsuarioGasto(n);
+                            setNuevoUsuarioInline('');
+                            setMostrarInputNuevoUsuario(false);
+                          }
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-primary"
+                      style={{ background: '#4E44EB', borderColor: '#4E44EB', borderRadius: '10px', whiteSpace: 'nowrap' }}
+                      onClick={() => {
                         const n = nuevoUsuarioInline.trim();
                         if (n) {
                           setUsuarioGasto(n);
                           setNuevoUsuarioInline('');
                           setMostrarInputNuevoUsuario(false);
                         }
-                      }
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-primary"
-                    style={{ background: '#4E44EB', borderColor: '#4E44EB', borderRadius: '10px', whiteSpace: 'nowrap' }}
-                    onClick={() => {
-                      const n = nuevoUsuarioInline.trim();
-                      if (n) {
-                        setUsuarioGasto(n);
-                        setNuevoUsuarioInline('');
-                        setMostrarInputNuevoUsuario(false);
-                      }
-                    }}
-                  >
-                    Asignar
-                  </button>
-                </div>
-              )}
-            </div>
+                      }}
+                    >
+                      Asignar
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* 2. CAMPO DESCRIPCIÓN O CONCEPTO (Manual) */}
             <div className="mb-3">
@@ -1761,75 +1832,99 @@ export default function AddData() {
                   <div className="tarjeta-credito-especial-bloque">
                     <div className="cabecera-tarjeta-credito-especial">
                       <span className="titulo-tarjeta-credito-especial">
-                        <i className="fas fa-credit-card"></i> Configuración de Tarjeta de Crédito Familiar
+                        <i className="fas fa-credit-card"></i> {tcEsFamiliar ? 'Tarjeta de Crédito Familiar' : 'Tarjeta de Crédito'}
                       </span>
-                      <span className="badge-finanzas-tc">Control de Deuda</span>
+                      <span className="badge-finanzas-tc">{tcEsFamiliar ? 'Compartida' : 'Personal'}</span>
                     </div>
 
-                    <div className="row g-2 mb-2">
-                      <div className="col-12 col-sm-6 mb-2 mb-sm-0">
-                        <label className="etiqueta-campo-finanzia" style={{ color: '#3730A3' }}>Tarjeta utilizada</label>
-                        <select
-                          className="campo-formulario-finanzia"
-                          value={tarjetaSeleccionadaId}
-                          onChange={(e) => setTarjetaSeleccionadaId(e.target.value)}
+                    {tarjetasDisponibles.length === 0 ? (
+                      <div className="p-3 bg-white rounded border text-center my-2">
+                        <i className="fas fa-credit-card fa-2x mb-2" style={{ color: '#8E92A4' }}></i>
+                        <h6 style={{ fontSize: '0.88rem', fontWeight: 700, color: '#1E1F30' }}>
+                          Aún no has configurado una tarjeta de crédito
+                        </h6>
+                        <p className="mb-2 text-muted" style={{ fontSize: '0.78rem' }}>
+                          Puedes configurar las fechas de corte, pago y cuotas en la sección de Tarjeta de Crédito.
+                        </p>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-primary"
+                          style={{ borderRadius: '10px', fontSize: '0.78rem' }}
+                          onClick={() => historial.push('/tarjeta-familiar')}
                         >
-                          {tarjetasDisponibles.map(t => (
-                            <option key={t.id} value={t.id}>💳 {t.nombre}</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="col-12 col-sm-6">
-                        <label className="etiqueta-campo-finanzia" style={{ color: '#3730A3' }}>Número de cuotas</label>
-                        <select
-                          className="campo-formulario-finanzia"
-                          value={cuotasGasto}
-                          onChange={(e) => setCuotasGasto(parseInt(e.target.value, 10))}
-                        >
-                          <option value={1}>1 pago al contado (sin cuotas)</option>
-                          <option value={3}>3 cuotas</option>
-                          <option value={6}>6 cuotas</option>
-                          <option value={10}>10 cuotas</option>
-                          <option value={12}>12 cuotas (1 año)</option>
-                          <option value={18}>18 cuotas</option>
-                          <option value={24}>24 cuotas (2 años)</option>
-                          <option value={36}>36 cuotas (3 años)</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="row g-2">
-                      <div className="col-12 col-sm-6 mb-2 mb-sm-0">
-                        <label className="etiqueta-campo-finanzia" style={{ color: '#3730A3' }}>
-                          Fecha de corte aplicada
-                        </label>
-                        <div className="p-2 bg-white rounded border" style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1E1F30' }}>
-                          📅 {cicloGastoCalculado.corteVisual}
-                        </div>
-                      </div>
-
-                      <div className="col-12 col-sm-6">
-                        <label className="etiqueta-campo-finanzia" style={{ color: '#3730A3' }}>
-                          Fecha de pago asignada
-                        </label>
-                        <div className="p-2 bg-white rounded border" style={{ fontSize: '0.85rem', fontWeight: 700, color: '#4E44EB' }}>
-                          💳 {cicloGastoCalculado.pagoVisual}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Alerta de traslado al siguiente ciclo si el gasto es posterior a la fecha de corte */}
-                    {cicloGastoCalculado.esSiguienteCiclo ? (
-                      <div className="alerta-rollover-corte-tc mt-2">
-                        <i className="fas fa-info-circle mr-1"></i>
-                        <strong>Aviso de corte:</strong> Este gasto ({formatearAFechaVisual(fecha)}) se realizó después de la fecha de corte configurada. Se asignó automáticamente al próximo ciclo con <strong>pago el {cicloGastoCalculado.pagoVisual}</strong>.
+                          <i className="fas fa-cog mr-1"></i> Configurar Tarjeta
+                        </button>
                       </div>
                     ) : (
-                      <div className="mt-2" style={{ fontSize: '0.74rem', color: '#4338CA' }}>
-                        <i className="fas fa-check-circle mr-1"></i>
-                        Este gasto entra en el ciclo actual con límite de pago el <strong>{cicloGastoCalculado.pagoVisual}</strong>.
-                      </div>
+                      <>
+                        <div className="row g-2 mb-2">
+                          <div className="col-12 col-sm-6 mb-2 mb-sm-0">
+                            <label className="etiqueta-campo-finanzia" style={{ color: '#3730A3' }}>Tarjeta utilizada</label>
+                            <select
+                              className="campo-formulario-finanzia"
+                              value={tarjetaSeleccionadaId}
+                              onChange={(e) => setTarjetaSeleccionadaId(e.target.value)}
+                            >
+                              {tarjetasDisponibles.map(t => (
+                                <option key={t.id} value={t.id}>
+                                  💳 {t.nombre} {t.esFamiliar ? '(Familiar)' : '(Personal)'}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="col-12 col-sm-6">
+                            <label className="etiqueta-campo-finanzia" style={{ color: '#3730A3' }}>Número de cuotas</label>
+                            <select
+                              className="campo-formulario-finanzia"
+                              value={cuotasGasto}
+                              onChange={(e) => setCuotasGasto(parseInt(e.target.value, 10))}
+                            >
+                              <option value={1}>1 pago al contado (sin cuotas)</option>
+                              <option value={3}>3 cuotas</option>
+                              <option value={6}>6 cuotas</option>
+                              <option value={10}>10 cuotas</option>
+                              <option value={12}>12 cuotas (1 año)</option>
+                              <option value={18}>18 cuotas</option>
+                              <option value={24}>24 cuotas (2 años)</option>
+                              <option value={36}>36 cuotas (3 años)</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="row g-2">
+                          <div className="col-12 col-sm-6 mb-2 mb-sm-0">
+                            <label className="etiqueta-campo-finanzia" style={{ color: '#3730A3' }}>
+                              Fecha de corte aplicada
+                            </label>
+                            <div className="p-2 bg-white rounded border" style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1E1F30' }}>
+                              📅 {cicloGastoCalculado.corteVisual}
+                            </div>
+                          </div>
+
+                          <div className="col-12 col-sm-6">
+                            <label className="etiqueta-campo-finanzia" style={{ color: '#3730A3' }}>
+                              Fecha de pago asignada
+                            </label>
+                            <div className="p-2 bg-white rounded border" style={{ fontSize: '0.85rem', fontWeight: 700, color: '#4E44EB' }}>
+                              💳 {cicloGastoCalculado.pagoVisual}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Alerta de traslado al siguiente ciclo si el gasto es posterior a la fecha de corte */}
+                        {cicloGastoCalculado.esSiguienteCiclo ? (
+                          <div className="alerta-rollover-corte-tc mt-2">
+                            <i className="fas fa-info-circle mr-1"></i>
+                            <strong>Aviso de corte:</strong> Este gasto ({formatearAFechaVisual(fecha)}) se realizó después de la fecha de corte configurada. Se asignó automáticamente al próximo ciclo con <strong>pago el {cicloGastoCalculado.pagoVisual}</strong>.
+                          </div>
+                        ) : (
+                          <div className="mt-2" style={{ fontSize: '0.74rem', color: '#4338CA' }}>
+                            <i className="fas fa-check-circle mr-1"></i>
+                            Este gasto entra en el ciclo actual con límite de pago el <strong>{cicloGastoCalculado.pagoVisual}</strong>.
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
