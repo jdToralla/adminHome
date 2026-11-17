@@ -5,6 +5,7 @@ import _swal from 'sweetalert';
 import { auth, firedb } from '../firebaseConfig';
 import { getCategoryMeta } from './categoryIcons';
 import VisorImagenModal from './VisorImagenModal';
+import ModalEditarMovimiento from './ModalEditarMovimiento';
 import './styles.css';
 
 /**
@@ -68,6 +69,25 @@ export default function Movimientos() {
   const [itemSeleccionado, setItemSeleccionado] = useState(null);
   const [mostrarModalDetalle, setMostrarModalDetalle] = useState(false);
   const [modalImagenGrande, setModalImagenGrande] = useState(null);
+
+  // Estados para modal de edición
+  const [mostrarModalEdicion, setMostrarModalEdicion] = useState(false);
+  const [movimientoAEditar, setMovimientoAEditar] = useState(null);
+
+  // Abrir modal de edición con información pre-cargada
+  const abrirModalEdicion = (item) => {
+    setMostrarModalDetalle(false);
+    setMovimientoAEditar(item);
+    setMostrarModalEdicion(true);
+  };
+
+  // Callback cuando se guardan los cambios en el modal de edición
+  const manejarMovimientoActualizado = (itemActualizado) => {
+    setListaMovimientos(prev => prev.map(m => (m.id === itemActualizado.id ? itemActualizado : m)));
+    if (itemSeleccionado && itemSeleccionado.id === itemActualizado.id) {
+      setItemSeleccionado(itemActualizado);
+    }
+  };
 
   // Estados de filtros
   const [busquedaTexto, setBusquedaTexto] = useState('');
@@ -656,11 +676,24 @@ export default function Movimientos() {
                   </div>
                 </div>
 
-                {/* Monto y Estado */}
+                {/* Monto, Estado y Botón Rápido de Edición */}
                 <div className="transaccion-monto-col">
-                  <span className={`transaccion-monto ${esIngreso ? 'ingreso' : 'gasto'}`}>
-                    {esIngreso ? '+' : '-'} Q {cantidadNum.toFixed(2)}
-                  </span>
+                  <div className="d-flex align-items-center justify-content-end gap-2">
+                    <span className={`transaccion-monto ${esIngreso ? 'ingreso' : 'gasto'}`}>
+                      {esIngreso ? '+' : '-'} Q {cantidadNum.toFixed(2)}
+                    </span>
+                    <button
+                      type="button"
+                      className="btn-lapiz-fila-transaccion"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        abrirModalEdicion(item);
+                      }}
+                      title="Editar transacción"
+                    >
+                      <i className="fas fa-pencil-alt"></i>
+                    </button>
+                  </div>
                   {(item.cuentaOrigen || item.cuentaDestino) && (
                     <span className="transaccion-cuenta-tag">
                       {item.cuentaOrigen || item.cuentaDestino}
@@ -733,13 +766,33 @@ export default function Movimientos() {
                     </span>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-light rounded-circle"
-                  onClick={() => setMostrarModalDetalle(false)}
-                >
-                  <i className="fas fa-times"></i>
-                </button>
+                <div className="d-flex align-items-center gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-sm rounded-circle d-flex align-items-center justify-content-center"
+                    style={{
+                      width: '36px',
+                      height: '36px',
+                      background: '#EEF2FF',
+                      color: '#4E44EB',
+                      border: '1px solid #E0E7FF',
+                      boxShadow: '0 2px 6px rgba(78, 68, 235, 0.15)',
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => abrirModalEdicion(itemSeleccionado)}
+                    title="Editar información del movimiento"
+                  >
+                    <i className="fas fa-pencil-alt"></i>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-light rounded-circle"
+                    onClick={() => setMostrarModalDetalle(false)}
+                    title="Cerrar detalle"
+                  >
+                    <i className="fas fa-times"></i>
+                  </button>
+                </div>
               </div>
 
               {/* Monto Grande Destacado con Estado */}
@@ -1003,20 +1056,49 @@ export default function Movimientos() {
                 </div>
               )}
 
-              {/* Botón de Eliminación */}
-              <button
-                type="button"
-                className="btn btn-outline-danger w-100 py-2 d-flex align-items-center justify-content-center gap-2"
-                style={{ borderRadius: '12px', fontWeight: 700, fontSize: '0.9rem' }}
-                onClick={() => eliminarMovimiento(itemSeleccionado.id, itemSeleccionado.descripcion)}
-              >
-                <i className="fas fa-trash-alt"></i>
-                Eliminar transacción
-              </button>
+              {/* Botones de Acción: Editar y Eliminar */}
+              <div className="d-flex gap-2">
+                <button
+                  type="button"
+                  className="btn btn-primary flex-grow-1 py-2 font-weight-bold d-flex align-items-center justify-content-center gap-2"
+                  style={{
+                    borderRadius: '12px',
+                    fontSize: '0.9rem',
+                    background: 'linear-gradient(135deg, #4E44EB 0%, #6E62FF 100%)',
+                    border: 'none',
+                    boxShadow: '0 4px 12px rgba(78, 68, 235, 0.25)'
+                  }}
+                  onClick={() => abrirModalEdicion(itemSeleccionado)}
+                >
+                  <i className="fas fa-pencil-alt"></i>
+                  Editar información
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-outline-danger py-2 px-3 d-flex align-items-center justify-content-center gap-2"
+                  style={{ borderRadius: '12px', fontWeight: 700, fontSize: '0.9rem' }}
+                  onClick={() => eliminarMovimiento(itemSeleccionado.id, itemSeleccionado.descripcion)}
+                  title="Eliminar transacción"
+                >
+                  <i className="fas fa-trash-alt"></i>
+                </button>
+              </div>
             </div>
           );
         })()}
       </Modal>
+
+      {/* Modal Completo de Edición de Movimiento */}
+      <ModalEditarMovimiento
+        show={mostrarModalEdicion}
+        movimiento={movimientoAEditar}
+        onHide={() => {
+          setMostrarModalEdicion(false);
+          setMovimientoAEditar(null);
+        }}
+        onGuardado={manejarMovimientoActualizado}
+      />
 
       {/* Modal Visor de Comprobante en Grande */}
       <VisorImagenModal

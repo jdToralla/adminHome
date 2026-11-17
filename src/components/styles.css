@@ -3288,7 +3288,45 @@
   white-space: nowrap;
 }
 
+/* =============================================================== */
+/* ESTILOS PARA EDICIÓN DE MOVIMIENTOS Y BOTÓN DE LÁPIZ            */
+/* =============================================================== */
+.modal-editar-movimiento-dialog {
+  max-width: 580px;
+  margin: 1.75rem auto;
+}
 
+@media (max-width: 576px) {
+  .modal-editar-movimiento-dialog {
+    margin: 0;
+    max-width: 100%;
+  }
+}
 
+.btn-lapiz-fila-transaccion {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: #F3F4F6;
+  color: #6B7280;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
 
+.btn-lapiz-fila-transaccion:hover {
+  background: #EEF2FF;
+  color: #4E44EB;
+  transform: scale(1.08);
+}
+
+.btn-lapiz-fila-transaccion:active {
+  transform: scale(0.96);
+}
 
