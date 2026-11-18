@@ -216,6 +216,8 @@ export default function Home() {
             // Calcular consumos de la tarjeta en los movimientos cargados
             const gastosTc = itemsTotales.filter(m => (
               m.tipo === 1 && (
+                Boolean(m.usuarioGasto && String(m.usuarioGasto).trim().length > 0) ||
+                m.tarjetaEsFamiliar === true ||
                 m.tarjetaCreditoId === tcData.id ||
                 m.tarjetaCreditoNombre === tcData.nombre ||
                 m.cuentaOrigen === 'Tarjeta de crédito' ||
