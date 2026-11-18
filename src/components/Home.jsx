@@ -1232,19 +1232,19 @@ export default function Home() {
                   </div>
                 )}
 
-                {movimientoSeleccionado.esGastoDividido && (
+                {movimientoSeleccionado?.esGastoDividido && (
                   <div className="p-2 my-2 rounded border" style={{ backgroundColor: '#F0FDF4', borderColor: '#BBF7D0', fontSize: '0.78rem' }}>
                     <div className="d-flex justify-content-between align-items-center mb-1">
                       <strong style={{ color: '#166534' }}>
                         <i className="fas fa-users mr-1"></i> Cuenta Dividida
                       </strong>
                       <span className="badge badge-success" style={{ backgroundColor: '#10B981' }}>
-                        Total grupal: Q {(parseFloat(movimientoSeleccionado.montoTotalGrupal) || 0).toFixed(2)}
+                        Total grupal: Q {(parseFloat(movimientoSeleccionado?.montoTotalGrupal) || 0).toFixed(2)}
                       </span>
                     </div>
                     <div style={{ color: '#15803D' }}>
-                      Dividido entre {movimientoSeleccionado.cantidadEnGrupo || movimientoSeleccionado.usuariosEnGrupo?.length || 2} personas
-                      {movimientoSeleccionado.usuariosEnGrupo && ` (${movimientoSeleccionado.usuariosEnGrupo.join(', ')})`}
+                      Dividido entre {movimientoSeleccionado?.cantidadEnGrupo || movimientoSeleccionado?.usuariosEnGrupo?.length || 2} personas
+                      {movimientoSeleccionado?.usuariosEnGrupo && ` (${movimientoSeleccionado.usuariosEnGrupo.join(', ')})`}
                     </div>
                   </div>
                 )}

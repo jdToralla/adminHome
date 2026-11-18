@@ -516,18 +516,18 @@ export default function ModalEditarMovimiento({ show, movimiento, onHide, onGuar
             <div className="modal-editar-cuerpo">
 
             {/* Banner de Gasto Dividido (si aplica) */}
-            {movimiento.esGastoDividido && (
+            {movimiento?.esGastoDividido && (
               <div className="alert alert-info py-2 px-3 mb-3 d-flex align-items-center justify-content-between" style={{ fontSize: '0.8rem', borderRadius: '12px' }}>
                 <div>
                   <i className="fas fa-users mr-1"></i>
-                  <strong>Gasto grupal compartido:</strong> Total de Q {(parseFloat(movimiento.montoTotalGrupal) || 0).toFixed(2)} dividido entre {movimiento.cantidadEnGrupo || movimiento.usuariosEnGrupo?.length || 2} personas
-                  {movimiento.usuariosEnGrupo && (
+                  <strong>Gasto grupal compartido:</strong> Total de Q {(parseFloat(movimiento?.montoTotalGrupal) || 0).toFixed(2)} dividido entre {movimiento?.cantidadEnGrupo || movimiento?.usuariosEnGrupo?.length || 2} personas
+                  {movimiento?.usuariosEnGrupo && (
                     <div className="text-muted" style={{ fontSize: '0.72rem' }}>
                       Integrantes: {movimiento.usuariosEnGrupo.join(', ')}
                     </div>
                   )}
                 </div>
-                <span className="badge badge-primary">Q {(parseFloat(movimiento.cantidad || movimiento.amount) || 0).toFixed(2)}</span>
+                <span className="badge badge-primary">Q {(parseFloat(movimiento?.cantidad || movimiento?.amount) || 0).toFixed(2)}</span>
               </div>
             )}
 
