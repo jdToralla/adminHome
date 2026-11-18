@@ -302,7 +302,9 @@ export default function AddData() {
 
   // En Egresos: Modo Dividir Cuenta entre varios familiares
   const [modoDividirCuenta, setModoDividirCuenta] = useState(false);
+  const [tipoDivision, setTipoDivision] = useState('equitativa'); // 'equitativa' | 'personalizada'
   const [usuariosDivididos, setUsuariosDivididos] = useState([]);
+  const [montosPersonalizados, setMontosPersonalizados] = useState({});
 
   // En Ingresos: Configuración de Tarjeta de Crédito (Personal o Familiar)
   const [tcIngresoHabilitarTarjeta, setTcIngresoHabilitarTarjeta] = useState(true);
@@ -419,6 +421,69 @@ export default function AddData() {
 
   const deseleccionarTodosLosFamiliares = () => {
     setUsuariosDivididos([]);
+  };
+
+  // Manejar cambio en monto individual personalizado
+  const manejarCambioMontoPersonalizado = (usuario, valor) => {
+    setMontosPersonalizados(prev => ({
+      ...prev,
+      [usuario]: valor
+    }));
+  };
+
+  // Suma de los montos personalizados de los usuarios actualmente seleccionados
+  const sumaMontosPersonalizados = useMemo(() => {
+    return usuariosDivididos.reduce((acc, u) => {
+      const val = parseFloat(montosPersonalizados[u]) || 0;
+      return acc + val;
+    }, 0);
+  }, [usuariosDivididos, montosPersonalizados]);
+
+  // Diferencia entre el monto total y la suma personalizada
+  const diferenciaMontosPersonalizados = useMemo(() => {
+    const total = parseFloat(monto) || 0;
+    return total - sumaMontosPersonalizados;
+  }, [monto, sumaMontosPersonalizados]);
+
+  // Botón rápido para ajustar el monto general al total de la suma personalizada
+  const aplicarSumaAlMontoTotal = () => {
+    if (sumaMontosPersonalizados > 0) {
+      setMonto(sumaMontosPersonalizados.toFixed(2));
+    }
+  };
+
+  // Botón para distribuir automáticamente el total entre los usuarios seleccionados
+  const distribuirEquitativamenteAMontosPersonalizados = () => {
+    const total = parseFloat(monto) || 0;
+    if (total <= 0 || usuariosDivididos.length === 0) return;
+    const base = Math.floor((total / usuariosDivididos.length) * 100) / 100;
+    const centavos = Math.round((total - (base * usuariosDivididos.length)) * 100);
+    const nuevoObj = {};
+    usuariosDivididos.forEach((u, idx) => {
+      nuevoObj[u] = idx === 0 ? (base + (centavos / 100)).toFixed(2) : base.toFixed(2);
+    });
+    setMontosPersonalizados(nuevoObj);
+  };
+
+  // Cambiar entre tipo de división equitativa y personalizada
+  const cambiarTipoDivision = (nuevoTipo) => {
+    setTipoDivision(nuevoTipo);
+    if (nuevoTipo === 'personalizada') {
+      const total = parseFloat(monto) || 0;
+      if (total > 0 && usuariosDivididos.length > 0) {
+        const base = Math.floor((total / usuariosDivididos.length) * 100) / 100;
+        const centavos = Math.round((total - (base * usuariosDivididos.length)) * 100);
+        setMontosPersonalizados(prev => {
+          const nuevo = { ...prev };
+          usuariosDivididos.forEach((u, idx) => {
+            if (!nuevo[u] || parseFloat(nuevo[u]) <= 0) {
+              nuevo[u] = idx === 0 ? (base + (centavos / 100)).toFixed(2) : base.toFixed(2);
+            }
+          });
+          return nuevo;
+        });
+      }
+    }
   };
 
   // Ciclo calculado para el gasto según la fecha seleccionada y la tarjeta
@@ -728,6 +793,29 @@ export default function AddData() {
         });
         return;
       }
+
+      if (tipoDivision === 'personalizada') {
+        for (const u of usuariosDivididos) {
+          const val = parseFloat(montosPersonalizados[u]);
+          if (!val || val <= 0) {
+            _swal({
+              title: 'Monto individual requerido',
+              text: `Por favor ingresa un monto válido mayor a 0 para ${u}.`,
+              icon: 'warning'
+            });
+            return;
+          }
+        }
+        const dif = Math.abs(sumaMontosPersonalizados - montoNumerico);
+        if (dif > 0.05) {
+          _swal({
+            title: 'Los montos no coinciden',
+            text: `La suma de los montos variables (Q ${sumaMontosPersonalizados.toFixed(2)}) no coincide con el total del gasto (Q ${montoNumerico.toFixed(2)}). Diferencia: Q ${dif.toFixed(2)}.`,
+            icon: 'warning'
+          });
+          return;
+        }
+      }
     }
 
     // Identificación del usuario activo
@@ -823,21 +911,40 @@ export default function AddData() {
       const centavosRestantes = esDivision ? Math.round((montoNumerico - (individualBase * N)) * 100) : 0;
       const grupoDivisionId = esDivision ? `split_${Date.now()}_${Math.random().toString(36).substring(2, 7)}` : null;
 
+      // Construcción del desglose grupal para trazabilidad completa
+      const desgloseGrupal = {};
+      const desgloseGrupalDetalle = [];
+      if (esDivision) {
+        usuariosDivididos.forEach((u, idx) => {
+          let mIndiv = 0;
+          if (tipoDivision === 'personalizada') {
+            mIndiv = parseFloat(parseFloat(montosPersonalizados[u] || 0).toFixed(2));
+          } else {
+            mIndiv = idx === 0 ? Number((individualBase + (centavosRestantes / 100)).toFixed(2)) : individualBase;
+          }
+          desgloseGrupal[u] = mIndiv;
+          desgloseGrupalDetalle.push({ usuario: u, monto: mIndiv });
+        });
+      }
+
       if (esDivision) {
         for (let i = 0; i < usuariosDivididos.length; i++) {
           const persona = usuariosDivididos[i];
-          const montoPersona = i === 0 ? Number((individualBase + (centavosRestantes / 100)).toFixed(2)) : individualBase;
+          const montoPersona = desgloseGrupal[persona];
           const refGastoIndiv = firedb.collection('users').doc(idUsuario).collection('expenses').doc();
           loteEscritura.set(refGastoIndiv, {
             ...entidadGasto,
             amount: montoPersona,
             usuarioGasto: persona,
             esGastoDividido: true,
+            tipoDivision: tipoDivision,
             grupoDivisionId: grupoDivisionId,
             montoTotalGrupal: montoNumerico,
             montoIndividual: montoPersona,
             usuariosEnGrupo: usuariosDivididos,
-            cantidadEnGrupo: N
+            cantidadEnGrupo: N,
+            desgloseGrupal: desgloseGrupal,
+            desgloseGrupalDetalle: desgloseGrupalDetalle
           });
         }
       } else {
@@ -873,7 +980,7 @@ export default function AddData() {
       if (esDivision) {
         for (let i = 0; i < usuariosDivididos.length; i++) {
           const persona = usuariosDivididos[i];
-          const montoPersona = i === 0 ? Number((individualBase + (centavosRestantes / 100)).toFixed(2)) : individualBase;
+          const montoPersona = desgloseGrupal[persona];
 
           await firedb.collection('caja-chica').add({
             cantidad: montoPersona,
@@ -900,11 +1007,14 @@ export default function AddData() {
             fechaPago: cicloAsignado ? cicloAsignado.fechaPago : null,
             claveCiclo: cicloAsignado ? cicloAsignado.claveCiclo : null,
             esGastoDividido: true,
+            tipoDivision: tipoDivision,
             grupoDivisionId: grupoDivisionId,
             montoTotalGrupal: montoNumerico,
             montoIndividual: montoPersona,
             usuariosEnGrupo: usuariosDivididos,
-            cantidadEnGrupo: N
+            cantidadEnGrupo: N,
+            desgloseGrupal: desgloseGrupal,
+            desgloseGrupalDetalle: desgloseGrupalDetalle
           });
         }
       } else {
@@ -944,11 +1054,15 @@ export default function AddData() {
       }
 
       if (esDivision) {
+        const textoDivision = tipoDivision === 'personalizada'
+          ? `Se registraron Q ${montoNumerico.toFixed(2)} con montos variables entre ${N} personas: ${usuariosDivididos.map(u => `${u}: Q ${desgloseGrupal[u].toFixed(2)}`).join(', ')}.`
+          : `Se registraron Q ${montoNumerico.toFixed(2)} divididos en partes iguales entre ${N} personas (Q ${(montoNumerico / N).toFixed(2)} c/u).`;
+
         _swal({
           title: '¡Gasto Dividido Registrado!',
-          text: `Se registraron Q ${montoNumerico.toFixed(2)} divididos entre ${N} personas (Q ${(montoNumerico / N).toFixed(2)} c/u).`,
+          text: textoDivision,
           icon: 'success',
-          timer: 1600,
+          timer: 2000,
           buttons: false
         });
       } else {
@@ -1832,32 +1946,139 @@ export default function AddData() {
                       })}
                     </div>
 
+                    {/* Selector de Modo de División: En Partes Iguales vs Montos Variables */}
+                    {usuariosDivididos.length >= 2 && (
+                      <div className="d-flex p-1 bg-white rounded border mb-2" style={{ borderColor: '#BBF7D0' }}>
+                        <button
+                          type="button"
+                          className={`btn btn-sm flex-fill py-1 font-weight-bold ${tipoDivision === 'equitativa' ? 'btn-success text-white shadow-sm' : 'btn-light text-muted'}`}
+                          style={{ fontSize: '0.75rem', borderRadius: '8px', transition: 'all 0.2s' }}
+                          onClick={() => cambiarTipoDivision('equitativa')}
+                        >
+                          <i className="fas fa-equals mr-1"></i> En partes iguales
+                        </button>
+                        <button
+                          type="button"
+                          className={`btn btn-sm flex-fill py-1 font-weight-bold ${tipoDivision === 'personalizada' ? 'btn-success text-white shadow-sm' : 'btn-light text-muted'}`}
+                          style={{ fontSize: '0.75rem', borderRadius: '8px', transition: 'all 0.2s' }}
+                          onClick={() => cambiarTipoDivision('personalizada')}
+                        >
+                          <i className="fas fa-sliders-h mr-1"></i> Montos variables
+                        </button>
+                      </div>
+                    )}
+
                     {/* Resumen del cálculo en vivo */}
                     {usuariosDivididos.length >= 2 ? (
-                      <div className="p-2 bg-white rounded border" style={{ borderColor: '#BBF7D0' }}>
-                        <div className="d-flex justify-content-between align-items-center">
-                          <span style={{ fontSize: '0.82rem', color: '#1E1F30' }}>
-                            <strong className="text-success" style={{ fontSize: '0.95rem' }}>
-                              Q {(parseFloat(monto) > 0 ? (parseFloat(monto) / usuariosDivididos.length).toFixed(2) : '0.00')}
-                            </strong> c/u
-                            <span className="text-muted ml-1">({usuariosDivididos.length} personas)</span>
-                          </span>
-                          <span className="text-muted" style={{ fontSize: '0.76rem' }}>
-                            Total a dividir: <strong>Q {parseFloat(monto) > 0 ? parseFloat(monto).toFixed(2) : '0.00'}</strong>
-                          </span>
-                        </div>
-                        <div className="d-flex flex-wrap gap-1 mt-2 pt-1 border-top">
-                          {usuariosDivididos.map(u => (
-                            <span key={u} className="badge badge-light border" style={{ fontSize: '0.72rem', color: '#166534', backgroundColor: '#DCFCE7' }}>
-                              <i className="fas fa-user-check mr-1 text-success"></i>{u}: Q {parseFloat(monto) > 0 ? (parseFloat(monto) / usuariosDivididos.length).toFixed(2) : '0.00'}
+                      tipoDivision === 'equitativa' ? (
+                        /* OPCIÓN 1: DIVISIÓN EN PARTES IGUALES */
+                        <div className="p-2 bg-white rounded border" style={{ borderColor: '#BBF7D0' }}>
+                          <div className="d-flex justify-content-between align-items-center">
+                            <span style={{ fontSize: '0.82rem', color: '#1E1F30' }}>
+                              <strong className="text-success" style={{ fontSize: '0.95rem' }}>
+                                Q {(parseFloat(monto) > 0 ? (parseFloat(monto) / usuariosDivididos.length).toFixed(2) : '0.00')}
+                              </strong> c/u
+                              <span className="text-muted ml-1">({usuariosDivididos.length} personas)</span>
                             </span>
-                          ))}
+                            <span className="text-muted" style={{ fontSize: '0.76rem' }}>
+                              Total a dividir: <strong>Q {parseFloat(monto) > 0 ? parseFloat(monto).toFixed(2) : '0.00'}</strong>
+                            </span>
+                          </div>
+                          <div className="d-flex flex-wrap gap-1 mt-2 pt-1 border-top">
+                            {usuariosDivididos.map(u => (
+                              <span key={u} className="badge badge-light border" style={{ fontSize: '0.72rem', color: '#166534', backgroundColor: '#DCFCE7' }}>
+                                <i className="fas fa-user-check mr-1 text-success"></i>{u}: Q {parseFloat(monto) > 0 ? (parseFloat(monto) / usuariosDivididos.length).toFixed(2) : '0.00'}
+                              </span>
+                            ))}
+                          </div>
                         </div>
-                      </div>
+                      ) : (
+                        /* OPCIÓN 2: MONTOS VARIABLES / PERSONALIZADOS POR FAMILIAR */
+                        <div className="p-2 bg-white rounded border" style={{ borderColor: '#BBF7D0' }}>
+                          <div className="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
+                            <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#166534' }}>
+                              <i className="fas fa-edit mr-1"></i> Ingresa cuánto gastó cada persona:
+                            </span>
+                            <button
+                              type="button"
+                              className="btn btn-xs btn-outline-success font-weight-bold"
+                              style={{ fontSize: '0.7rem', borderRadius: '12px' }}
+                              onClick={distribuirEquitativamenteAMontosPersonalizados}
+                              title="Dividir el total actual en partes iguales como punto de partida"
+                            >
+                              <i className="fas fa-magic mr-1"></i> Partes iguales
+                            </button>
+                          </div>
+
+                          <div className="d-flex flex-column gap-2 mb-2">
+                            {usuariosDivididos.map((u) => {
+                              const valIndiv = montosPersonalizados[u] !== undefined ? montosPersonalizados[u] : '';
+                              return (
+                                <div key={u} className="d-flex align-items-center justify-content-between p-1 px-2 rounded" style={{ backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                                  <div className="d-flex align-items-center gap-2">
+                                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: '#DCFCE7', color: '#166534', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.75rem' }}>
+                                      {u.charAt(0).toUpperCase()}
+                                    </div>
+                                    <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#1E293B' }}>{u}</span>
+                                  </div>
+                                  <div className="d-flex align-items-center" style={{ maxWidth: '140px' }}>
+                                    <span className="mr-1 text-muted font-weight-bold" style={{ fontSize: '0.8rem' }}>Q</span>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      className="form-control form-control-sm text-right font-weight-bold"
+                                      style={{ height: '32px', fontSize: '0.85rem', borderColor: '#CBD5E1' }}
+                                      placeholder="0.00"
+                                      value={valIndiv}
+                                      onChange={(e) => manejarCambioMontoPersonalizado(u, e.target.value)}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* Resumen de totales y estado de cuadre */}
+                          <div className="pt-2 border-top">
+                            <div className="d-flex justify-content-between align-items-center mb-1">
+                              <span style={{ fontSize: '0.76rem', color: '#64748B' }}>
+                                Suma de familiares: <strong style={{ color: '#0F172A' }}>Q {sumaMontosPersonalizados.toFixed(2)}</strong>
+                              </span>
+                              <span style={{ fontSize: '0.76rem', color: '#64748B' }}>
+                                Total del gasto: <strong style={{ color: '#0F172A' }}>Q {(parseFloat(monto) || 0).toFixed(2)}</strong>
+                              </span>
+                            </div>
+
+                            {Math.abs(diferenciaMontosPersonalizados) <= 0.05 && parseFloat(monto) > 0 ? (
+                              <div className="badge badge-success d-block p-2 text-center" style={{ backgroundColor: '#10B981', fontSize: '0.76rem' }}>
+                                <i className="fas fa-check-circle mr-1"></i> ¡Excelente! La suma coincide exactamente con el total del gasto.
+                              </div>
+                            ) : (
+                              <div className="d-flex justify-content-between align-items-center p-2 rounded" style={{ backgroundColor: diferenciaMontosPersonalizados > 0 ? '#FEF3C7' : '#EFF6FF', border: `1px solid ${diferenciaMontosPersonalizados > 0 ? '#FCD34D' : '#BFDBFE'}` }}>
+                                <span style={{ fontSize: '0.74rem', color: diferenciaMontosPersonalizados > 0 ? '#92400E' : '#1E40AF', fontWeight: 600 }}>
+                                  <i className="fas fa-info-circle mr-1"></i>
+                                  {diferenciaMontosPersonalizados > 0
+                                    ? `Faltan Q ${diferenciaMontosPersonalizados.toFixed(2)} por asignar.`
+                                    : `La suma supera el total por Q ${Math.abs(diferenciaMontosPersonalizados).toFixed(2)}.`}
+                                </span>
+                                <button
+                                  type="button"
+                                  className="btn btn-xs btn-dark font-weight-bold"
+                                  style={{ fontSize: '0.7rem', borderRadius: '10px', padding: '2px 8px' }}
+                                  onClick={aplicarSumaAlMontoTotal}
+                                >
+                                  Ajustar total a Q {sumaMontosPersonalizados.toFixed(2)}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )
                     ) : (
                       <div className="text-warning mt-1" style={{ fontSize: '0.76rem', fontWeight: 600 }}>
                         <i className="fas fa-exclamation-triangle mr-1"></i>
-                        Selecciona al menos 2 familiares para calcular la división equitativa.
+                        Selecciona al menos 2 familiares para dividir la cuenta.
                       </div>
                     )}
                   </div>

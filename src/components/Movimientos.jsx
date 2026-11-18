@@ -653,7 +653,7 @@ export default function Movimientos() {
                     )}
                     {item.esGastoDividido && (
                       <span className="transaccion-usuario-badge" style={{ backgroundColor: '#F0FDF4', color: '#16A34A', border: '1px solid #BBF7D0', padding: '2px 8px', borderRadius: '12px', fontSize: '0.70rem', fontWeight: 700 }}>
-                        <i className="fas fa-users mr-1"></i>Dividido ({item.cantidadEnGrupo || item.usuariosEnGrupo?.length || 2} pers. • Total Q {(parseFloat(item.montoTotalGrupal) || 0).toFixed(2)})
+                        <i className="fas fa-users mr-1"></i>Dividido ({item.tipoDivision === 'personalizada' ? 'Montos variables' : 'En partes iguales'} • Total Q {(parseFloat(item.montoTotalGrupal) || 0).toFixed(2)})
                       </span>
                     )}
                     <span className="transaccion-fecha-texto">
@@ -906,16 +906,59 @@ export default function Movimientos() {
                   <div className="p-3 my-2 rounded border" style={{ backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }}>
                     <div className="d-flex align-items-center justify-content-between mb-1">
                       <strong style={{ color: '#166534', fontSize: '0.85rem' }}>
-                        <i className="fas fa-users mr-1"></i> Cuenta Dividida
+                        <i className="fas fa-users mr-1"></i> Cuenta Dividida ({itemSeleccionado.tipoDivision === 'personalizada' ? 'Montos variables' : 'En partes iguales'})
                       </strong>
                       <span className="badge badge-success" style={{ backgroundColor: '#10B981', fontSize: '0.74rem' }}>
                         Total grupal: Q {(parseFloat(itemSeleccionado.montoTotalGrupal) || 0).toFixed(2)}
                       </span>
                     </div>
                     <div style={{ fontSize: '0.78rem', color: '#15803D' }}>
-                      Este gasto total de <strong>Q {(parseFloat(itemSeleccionado.montoTotalGrupal) || 0).toFixed(2)}</strong> fue dividido en partes iguales entre {itemSeleccionado.cantidadEnGrupo || itemSeleccionado.usuariosEnGrupo?.length || 2} personas (<strong>Q {cantidadNum.toFixed(2)} c/u</strong>).
+                      {itemSeleccionado.tipoDivision === 'personalizada' ? (
+                        <>Este gasto total de <strong>Q {(parseFloat(itemSeleccionado.montoTotalGrupal) || 0).toFixed(2)}</strong> fue distribuido con montos variables (este registro corresponde a <strong>Q {cantidadNum.toFixed(2)}</strong> de <strong>{itemSeleccionado.usuarioGasto}</strong>).</>
+                      ) : (
+                        <>Este gasto total de <strong>Q {(parseFloat(itemSeleccionado.montoTotalGrupal) || 0).toFixed(2)}</strong> fue dividido en partes iguales entre {itemSeleccionado.cantidadEnGrupo || itemSeleccionado.usuariosEnGrupo?.length || 2} personas (<strong>Q {cantidadNum.toFixed(2)} c/u</strong>).</>
+                      )}
                     </div>
-                    {itemSeleccionado.usuariosEnGrupo && itemSeleccionado.usuariosEnGrupo.length > 0 && (
+                    {/* Desglose de todos los familiares */}
+                    {itemSeleccionado.desgloseGrupalDetalle && itemSeleccionado.desgloseGrupalDetalle.length > 0 ? (
+                      <div className="d-flex flex-wrap gap-1 align-items-center mt-2 pt-1 border-top" style={{ borderColor: '#BBF7D0' }}>
+                        <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#166534' }}>Desglose:</span>
+                        {itemSeleccionado.desgloseGrupalDetalle.map((d, idx) => (
+                          <span
+                            key={idx}
+                            className="badge badge-light border"
+                            style={{
+                              fontSize: '0.72rem',
+                              backgroundColor: d.usuario === itemSeleccionado.usuarioGasto ? '#DCFCE7' : '#FFFFFF',
+                              color: d.usuario === itemSeleccionado.usuarioGasto ? '#15803D' : '#374151',
+                              fontWeight: d.usuario === itemSeleccionado.usuarioGasto ? 700 : 500
+                            }}
+                          >
+                            <i className="fas fa-user-circle mr-1"></i>{d.usuario}: Q {(parseFloat(d.monto) || 0).toFixed(2)}
+                            {d.usuario === itemSeleccionado.usuarioGasto && ' (este registro)'}
+                          </span>
+                        ))}
+                      </div>
+                    ) : itemSeleccionado.desgloseGrupal ? (
+                      <div className="d-flex flex-wrap gap-1 align-items-center mt-2 pt-1 border-top" style={{ borderColor: '#BBF7D0' }}>
+                        <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#166534' }}>Desglose:</span>
+                        {Object.entries(itemSeleccionado.desgloseGrupal).map(([u, m], idx) => (
+                          <span
+                            key={idx}
+                            className="badge badge-light border"
+                            style={{
+                              fontSize: '0.72rem',
+                              backgroundColor: u === itemSeleccionado.usuarioGasto ? '#DCFCE7' : '#FFFFFF',
+                              color: u === itemSeleccionado.usuarioGasto ? '#15803D' : '#374151',
+                              fontWeight: u === itemSeleccionado.usuarioGasto ? 700 : 500
+                            }}
+                          >
+                            <i className="fas fa-user-circle mr-1"></i>{u}: Q {(parseFloat(m) || 0).toFixed(2)}
+                            {u === itemSeleccionado.usuarioGasto && ' (este registro)'}
+                          </span>
+                        ))}
+                      </div>
+                    ) : itemSeleccionado.usuariosEnGrupo && itemSeleccionado.usuariosEnGrupo.length > 0 && (
                       <div className="d-flex flex-wrap gap-1 align-items-center mt-2 pt-1 border-top" style={{ borderColor: '#BBF7D0' }}>
                         <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#166534' }}>Participantes:</span>
                         {itemSeleccionado.usuariosEnGrupo.map((u, idx) => (

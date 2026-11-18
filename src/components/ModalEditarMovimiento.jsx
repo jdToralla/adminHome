@@ -520,14 +520,22 @@ export default function ModalEditarMovimiento({ show, movimiento, onHide, onGuar
               <div className="alert alert-info py-2 px-3 mb-3 d-flex align-items-center justify-content-between" style={{ fontSize: '0.8rem', borderRadius: '12px' }}>
                 <div>
                   <i className="fas fa-users mr-1"></i>
-                  <strong>Gasto grupal compartido:</strong> Total de Q {(parseFloat(movimiento?.montoTotalGrupal) || 0).toFixed(2)} dividido entre {movimiento?.cantidadEnGrupo || movimiento?.usuariosEnGrupo?.length || 2} personas
-                  {movimiento?.usuariosEnGrupo && (
-                    <div className="text-muted" style={{ fontSize: '0.72rem' }}>
+                  <strong>Gasto grupal compartido ({movimiento?.tipoDivision === 'personalizada' ? 'Montos variables' : 'En partes iguales'}):</strong> Total de Q {(parseFloat(movimiento?.montoTotalGrupal) || 0).toFixed(2)}
+                  {movimiento?.desgloseGrupalDetalle && movimiento.desgloseGrupalDetalle.length > 0 ? (
+                    <div className="text-muted mt-1" style={{ fontSize: '0.72rem' }}>
+                      Desglose: {movimiento.desgloseGrupalDetalle.map(d => `${d.usuario}: Q ${(parseFloat(d.monto) || 0).toFixed(2)}`).join(' • ')}
+                    </div>
+                  ) : movimiento?.desgloseGrupal ? (
+                    <div className="text-muted mt-1" style={{ fontSize: '0.72rem' }}>
+                      Desglose: {Object.entries(movimiento.desgloseGrupal).map(([u, m]) => `${u}: Q ${(parseFloat(m) || 0).toFixed(2)}`).join(' • ')}
+                    </div>
+                  ) : movimiento?.usuariosEnGrupo && (
+                    <div className="text-muted mt-1" style={{ fontSize: '0.72rem' }}>
                       Integrantes: {movimiento.usuariosEnGrupo.join(', ')}
                     </div>
                   )}
                 </div>
-                <span className="badge badge-primary">Q {(parseFloat(movimiento?.cantidad || movimiento?.amount) || 0).toFixed(2)}</span>
+                <span className="badge badge-primary">Esta cuota: Q {(parseFloat(movimiento?.cantidad || movimiento?.amount) || 0).toFixed(2)}</span>
               </div>
             )}
 

@@ -927,9 +927,22 @@ export default function TarjetaFamiliar() {
                                 className="mt-1 d-inline-block px-2 py-1 rounded"
                                 style={{ backgroundColor: '#F0FDF4', border: '1px solid #BBF7D0', fontSize: '0.72rem', color: '#166534' }}
                               >
-                                <i className="fas fa-users mr-1 text-success"></i>
-                                Gasto grupal de <strong>Q {(parseFloat(mov.montoTotalGrupal) || 0).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> dividido entre {mov.cantidadEnGrupo || mov.usuariosEnGrupo?.length || 2} personas
-                                {mov.usuariosEnGrupo && (
+                                <div>
+                                  <i className="fas fa-users mr-1 text-success"></i>
+                                  Gasto grupal de <strong>Q {(parseFloat(mov.montoTotalGrupal) || 0).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                                  <span className="badge badge-light ml-1 border" style={{ fontSize: '0.68rem', color: '#166534' }}>
+                                    {mov.tipoDivision === 'personalizada' ? 'Montos variables' : 'En partes iguales'}
+                                  </span>
+                                </div>
+                                {mov.desgloseGrupalDetalle && mov.desgloseGrupalDetalle.length > 0 ? (
+                                  <div style={{ color: '#15803D', fontSize: '0.68rem', marginTop: '2px' }}>
+                                    Desglose: {mov.desgloseGrupalDetalle.map(d => `${d.usuario}: Q ${(parseFloat(d.monto) || 0).toFixed(2)}`).join(' • ')}
+                                  </div>
+                                ) : mov.desgloseGrupal ? (
+                                  <div style={{ color: '#15803D', fontSize: '0.68rem', marginTop: '2px' }}>
+                                    Desglose: {Object.entries(mov.desgloseGrupal).map(([u, m]) => `${u}: Q ${(parseFloat(m) || 0).toFixed(2)}`).join(' • ')}
+                                  </div>
+                                ) : mov.usuariosEnGrupo && (
                                   <div style={{ color: '#15803D', fontSize: '0.68rem', marginTop: '1px' }}>
                                     Integrantes: {mov.usuariosEnGrupo.join(', ')}
                                   </div>

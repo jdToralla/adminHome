@@ -1236,16 +1236,40 @@ export default function Home() {
                   <div className="p-2 my-2 rounded border" style={{ backgroundColor: '#F0FDF4', borderColor: '#BBF7D0', fontSize: '0.78rem' }}>
                     <div className="d-flex justify-content-between align-items-center mb-1">
                       <strong style={{ color: '#166534' }}>
-                        <i className="fas fa-users mr-1"></i> Cuenta Dividida
+                        <i className="fas fa-users mr-1"></i> Cuenta Dividida ({movimientoSeleccionado?.tipoDivision === 'personalizada' ? 'Montos variables' : 'En partes iguales'})
                       </strong>
                       <span className="badge badge-success" style={{ backgroundColor: '#10B981' }}>
                         Total grupal: Q {(parseFloat(movimientoSeleccionado?.montoTotalGrupal) || 0).toFixed(2)}
                       </span>
                     </div>
                     <div style={{ color: '#15803D' }}>
-                      Dividido entre {movimientoSeleccionado?.cantidadEnGrupo || movimientoSeleccionado?.usuariosEnGrupo?.length || 2} personas
-                      {movimientoSeleccionado?.usuariosEnGrupo && ` (${movimientoSeleccionado.usuariosEnGrupo.join(', ')})`}
+                      {movimientoSeleccionado?.tipoDivision === 'personalizada'
+                        ? `Gasto con montos variables (esta cuota es de Q ${(parseFloat(movimientoSeleccionado?.cantidad || movimientoSeleccionado?.amount) || 0).toFixed(2)})`
+                        : `Dividido en partes iguales entre ${movimientoSeleccionado?.cantidadEnGrupo || movimientoSeleccionado?.usuariosEnGrupo?.length || 2} personas`}
                     </div>
+                    {movimientoSeleccionado?.desgloseGrupalDetalle && movimientoSeleccionado.desgloseGrupalDetalle.length > 0 ? (
+                      <div className="d-flex flex-wrap gap-1 mt-1 pt-1 border-top" style={{ borderColor: '#BBF7D0' }}>
+                        {movimientoSeleccionado.desgloseGrupalDetalle.map((d, i) => (
+                          <span key={i} className="badge badge-light border" style={{ fontSize: '0.7rem', color: '#15803D' }}>
+                            {d.usuario}: Q {(parseFloat(d.monto) || 0).toFixed(2)}
+                          </span>
+                        ))}
+                      </div>
+                    ) : movimientoSeleccionado?.desgloseGrupal ? (
+                      <div className="d-flex flex-wrap gap-1 mt-1 pt-1 border-top" style={{ borderColor: '#BBF7D0' }}>
+                        {Object.entries(movimientoSeleccionado.desgloseGrupal).map(([u, m], i) => (
+                          <span key={i} className="badge badge-light border" style={{ fontSize: '0.7rem', color: '#15803D' }}>
+                            {u}: Q {(parseFloat(m) || 0).toFixed(2)}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      movimientoSeleccionado?.usuariosEnGrupo && (
+                        <div className="mt-1 text-muted" style={{ fontSize: '0.7rem' }}>
+                          Integrantes: {movimientoSeleccionado.usuariosEnGrupo.join(', ')}
+                        </div>
+                      )
+                    )}
                   </div>
                 )}
 
