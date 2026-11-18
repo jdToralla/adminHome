@@ -922,6 +922,20 @@ export default function TarjetaFamiliar() {
                               {mov.comercio && ` • ${mov.comercio}`}
                               {mov.cuotas > 1 && ` • ${mov.cuotas} cuotas`}
                             </div>
+                            {mov.esGastoDividido && (
+                              <div
+                                className="mt-1 d-inline-block px-2 py-1 rounded"
+                                style={{ backgroundColor: '#F0FDF4', border: '1px solid #BBF7D0', fontSize: '0.72rem', color: '#166534' }}
+                              >
+                                <i className="fas fa-users mr-1 text-success"></i>
+                                Gasto grupal de <strong>Q {(parseFloat(mov.montoTotalGrupal) || 0).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> dividido entre {mov.cantidadEnGrupo || mov.usuariosEnGrupo?.length || 2} personas
+                                {mov.usuariosEnGrupo && (
+                                  <div style={{ color: '#15803D', fontSize: '0.68rem', marginTop: '1px' }}>
+                                    Integrantes: {mov.usuariosEnGrupo.join(', ')}
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
 

@@ -651,6 +651,11 @@ export default function Movimientos() {
                         <i className="fas fa-user mr-1"></i>{item.usuarioGasto}
                       </span>
                     )}
+                    {item.esGastoDividido && (
+                      <span className="transaccion-usuario-badge" style={{ backgroundColor: '#F0FDF4', color: '#16A34A', border: '1px solid #BBF7D0', padding: '2px 8px', borderRadius: '12px', fontSize: '0.70rem', fontWeight: 700 }}>
+                        <i className="fas fa-users mr-1"></i>Dividido ({item.cantidadEnGrupo || item.usuariosEnGrupo?.length || 2} pers. • Total Q {(parseFloat(item.montoTotalGrupal) || 0).toFixed(2)})
+                      </span>
+                    )}
                     <span className="transaccion-fecha-texto">
                       {item.fechaLegible || item.fecha} &bull; {item.hora || ''}
                     </span>
@@ -893,6 +898,43 @@ export default function Movimientos() {
                     <span className="badge badge-light" style={{ fontSize: '0.8rem', color: '#4E44EB', fontWeight: 700 }}>
                       <i className="fas fa-user-circle mr-1"></i>{itemSeleccionado.usuarioGasto}
                     </span>
+                  </div>
+                )}
+
+                {/* Detalle de Gasto Compartido / Dividido */}
+                {itemSeleccionado.esGastoDividido && (
+                  <div className="p-3 my-2 rounded border" style={{ backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }}>
+                    <div className="d-flex align-items-center justify-content-between mb-1">
+                      <strong style={{ color: '#166534', fontSize: '0.85rem' }}>
+                        <i className="fas fa-users mr-1"></i> Cuenta Dividida
+                      </strong>
+                      <span className="badge badge-success" style={{ backgroundColor: '#10B981', fontSize: '0.74rem' }}>
+                        Total grupal: Q {(parseFloat(itemSeleccionado.montoTotalGrupal) || 0).toFixed(2)}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: '#15803D' }}>
+                      Este gasto total de <strong>Q {(parseFloat(itemSeleccionado.montoTotalGrupal) || 0).toFixed(2)}</strong> fue dividido en partes iguales entre {itemSeleccionado.cantidadEnGrupo || itemSeleccionado.usuariosEnGrupo?.length || 2} personas (<strong>Q {cantidadNum.toFixed(2)} c/u</strong>).
+                    </div>
+                    {itemSeleccionado.usuariosEnGrupo && itemSeleccionado.usuariosEnGrupo.length > 0 && (
+                      <div className="d-flex flex-wrap gap-1 align-items-center mt-2 pt-1 border-top" style={{ borderColor: '#BBF7D0' }}>
+                        <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#166534' }}>Participantes:</span>
+                        {itemSeleccionado.usuariosEnGrupo.map((u, idx) => (
+                          <span
+                            key={idx}
+                            className="badge badge-light border"
+                            style={{
+                              fontSize: '0.72rem',
+                              backgroundColor: u === itemSeleccionado.usuarioGasto ? '#DCFCE7' : '#FFFFFF',
+                              color: u === itemSeleccionado.usuarioGasto ? '#15803D' : '#374151',
+                              fontWeight: u === itemSeleccionado.usuarioGasto ? 700 : 500
+                            }}
+                          >
+                            <i className="fas fa-user-circle mr-1"></i>{u}
+                            {u === itemSeleccionado.usuarioGasto && ' (esta cuota)'}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 

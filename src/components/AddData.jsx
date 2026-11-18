@@ -300,6 +300,10 @@ export default function AddData() {
   const [mostrarInputNuevoUsuario, setMostrarInputNuevoUsuario] = useState(false);
   const [nuevoUsuarioInline, setNuevoUsuarioInline] = useState('');
 
+  // En Egresos: Modo Dividir Cuenta entre varios familiares
+  const [modoDividirCuenta, setModoDividirCuenta] = useState(false);
+  const [usuariosDivididos, setUsuariosDivididos] = useState([]);
+
   // En Ingresos: Configuración de Tarjeta de Crédito (Personal o Familiar)
   const [tcIngresoHabilitarTarjeta, setTcIngresoHabilitarTarjeta] = useState(true);
   const [tcIngresoEsFamiliar, setTcIngresoEsFamiliar] = useState(false);
@@ -366,17 +370,56 @@ export default function AddData() {
     tarjetaActualSeleccionada.habilitarTarjeta !== false &&
     tarjetaActualSeleccionada.activa !== false
   );
-  const tcEsFamiliar = Boolean(tcHabilitada && tarjetaActualSeleccionada?.esFamiliar === true);
+  const tcEsFamiliar = Boolean(
+    (tcHabilitada && tarjetaActualSeleccionada?.esFamiliar === true) ||
+    tarjetasDisponibles.some(t => t.esFamiliar === true && t.habilitarTarjeta !== false)
+  );
 
   // Lista de usuarios disponibles para asociar al gasto (solo relevante si es familiar)
   const listaUsuariosDisponibles = useMemo(() => {
-    const usuariosTc = tarjetaActualSeleccionada?.usuariosInvolucrados || [];
+    const tarjetaFamiliarEncontrada = tarjetaActualSeleccionada?.esFamiliar
+      ? tarjetaActualSeleccionada
+      : tarjetasDisponibles.find(t => t.esFamiliar === true && t.habilitarTarjeta !== false);
+
+    const usuariosTc = tarjetaFamiliarEncontrada?.usuariosInvolucrados || tarjetaActualSeleccionada?.usuariosInvolucrados || [];
     const base = usuariosTc.length > 0 ? usuariosTc : ['Usuario 1', 'Usuario 2'];
     if (usuarioGasto && !base.includes(usuarioGasto)) {
       return [...base, usuarioGasto];
     }
     return base;
-  }, [tarjetaActualSeleccionada, usuarioGasto]);
+  }, [tarjetaActualSeleccionada, tarjetasDisponibles, usuarioGasto]);
+
+  // Alternar modo dividir cuenta entre varios familiares
+  const alternarModoDividirCuenta = () => {
+    const nuevoModo = !modoDividirCuenta;
+    setModoDividirCuenta(nuevoModo);
+    if (nuevoModo) {
+      if (usuariosDivididos.length === 0) {
+        if (listaUsuariosDisponibles.length >= 2) {
+          setUsuariosDivididos([...listaUsuariosDisponibles]);
+        } else {
+          setUsuariosDivididos(listaUsuariosDisponibles.length > 0 ? [listaUsuariosDisponibles[0]] : ['Usuario 1']);
+        }
+      }
+    }
+  };
+
+  // Alternar selección de un usuario en el modo división
+  const toggleUsuarioDividido = (nombre) => {
+    if (usuariosDivididos.includes(nombre)) {
+      setUsuariosDivididos(usuariosDivididos.filter(u => u !== nombre));
+    } else {
+      setUsuariosDivididos([...usuariosDivididos, nombre]);
+    }
+  };
+
+  const seleccionarTodosLosFamiliares = () => {
+    setUsuariosDivididos([...listaUsuariosDisponibles]);
+  };
+
+  const deseleccionarTodosLosFamiliares = () => {
+    setUsuariosDivididos([]);
+  };
 
   // Ciclo calculado para el gasto según la fecha seleccionada y la tarjeta
   const cicloGastoCalculado = useMemo(() => {
@@ -675,6 +718,18 @@ export default function AddData() {
       return;
     }
 
+    // Validación de división de cuenta entre familiares
+    if (tcEsFamiliar && modoDividirCuenta) {
+      if (usuariosDivididos.length < 2) {
+        _swal({
+          title: 'Familiares insuficientes',
+          text: 'Para dividir la cuenta debes seleccionar al menos 2 familiares.',
+          icon: 'warning'
+        });
+        return;
+      }
+    }
+
     // Identificación del usuario activo
     const usuarioActual = auth.currentUser;
     const idUsuario = usuarioActual ? usuarioActual.uid : localStorage.getItem('currentId');
@@ -724,7 +779,7 @@ export default function AddData() {
         ? determinarCicloGasto(fecha, tarjetaActualSeleccionada)
         : null;
 
-      // Objeto de la entidad de Gasto completa
+      // Objeto base de la entidad de Gasto
       const entidadGasto = {
         userId: idUsuario,
         amount: montoNumerico,
@@ -762,9 +817,34 @@ export default function AddData() {
       // 2. Operación por lotes (Batch) para optimizar lecturas/escrituras en Firestore
       const loteEscritura = firedb.batch();
 
-      // a) Subcolección dedicada del usuario: users/{idUsuario}/expenses
-      const referenciaGasto = firedb.collection('users').doc(idUsuario).collection('expenses').doc();
-      loteEscritura.set(referenciaGasto, entidadGasto);
+      const esDivision = Boolean(tcEsFamiliar && modoDividirCuenta && usuariosDivididos.length >= 2);
+      const N = esDivision ? usuariosDivididos.length : 1;
+      const individualBase = esDivision ? Math.floor((montoNumerico / N) * 100) / 100 : montoNumerico;
+      const centavosRestantes = esDivision ? Math.round((montoNumerico - (individualBase * N)) * 100) : 0;
+      const grupoDivisionId = esDivision ? `split_${Date.now()}_${Math.random().toString(36).substring(2, 7)}` : null;
+
+      if (esDivision) {
+        for (let i = 0; i < usuariosDivididos.length; i++) {
+          const persona = usuariosDivididos[i];
+          const montoPersona = i === 0 ? Number((individualBase + (centavosRestantes / 100)).toFixed(2)) : individualBase;
+          const refGastoIndiv = firedb.collection('users').doc(idUsuario).collection('expenses').doc();
+          loteEscritura.set(refGastoIndiv, {
+            ...entidadGasto,
+            amount: montoPersona,
+            usuarioGasto: persona,
+            esGastoDividido: true,
+            grupoDivisionId: grupoDivisionId,
+            montoTotalGrupal: montoNumerico,
+            montoIndividual: montoPersona,
+            usuariosEnGrupo: usuariosDivididos,
+            cantidadEnGrupo: N
+          });
+        }
+      } else {
+        // Subcolección dedicada del usuario: users/{idUsuario}/expenses
+        const referenciaGasto = firedb.collection('users').doc(idUsuario).collection('expenses').doc();
+        loteEscritura.set(referenciaGasto, entidadGasto);
+      }
 
       // b) Agregación mensual desnormalizada: users/{idUsuario}/aggregatedStats/{claveMes}
       const referenciaEstadisticas = firedb.collection('users').doc(idUsuario).collection('aggregatedStats').doc(claveMes);
@@ -789,32 +869,71 @@ export default function AddData() {
       // Ejecutar lote atómico
       await loteEscritura.commit();
 
-      // c) Escritura en la colección 'caja-chica' para mantener compatibilidad total con Home.jsx
-      await firedb.collection('caja-chica').add({
-        cantidad: montoNumerico,
-        fecha: fecha,
-        hora: hora || obtenerHoraActual(),
-        descripcion: descripcion.trim() || categoriaGasto,
-        idUser: parseUserId(idUsuario),
-        tipo: 1, // 1 = Egreso
-        categoria: categoriaGasto,
-        subcategoria: subcategoriaGasto.trim() || null,
-        cuentaOrigen: cuentaOrigenGasto,
-        metodoPago: metodoPagoGasto,
-        comercio: comercioGasto.trim() || null,
-        esRecurrente: esRecurrenteGasto,
-        estado: estadoGasto,
-        cuotas: esTarjetaCredito ? cuotasNumero : 1,
-        attachmentUrl: urlFinalComprobante || null,
-        urlComprobante: urlFinalComprobante || null,
-        usuarioGasto: tcEsFamiliar ? (usuarioGasto || 'Usuario 1') : null,
-        tarjetaCreditoNombre: esTarjetaCredito ? (tarjetaActualSeleccionada?.nombre || null) : null,
-        tarjetaCreditoId: esTarjetaCredito ? (tarjetaActualSeleccionada?.id || null) : null,
-        tarjetaEsFamiliar: esTarjetaCredito ? tcEsFamiliar : false,
-        fechaCorte: cicloAsignado ? cicloAsignado.fechaCorte : null,
-        fechaPago: cicloAsignado ? cicloAsignado.fechaPago : null,
-        claveCiclo: cicloAsignado ? cicloAsignado.claveCiclo : null
-      });
+      // c) Escritura en la colección 'caja-chica' para mantener compatibilidad total con Home y Tarjeta Familiar
+      if (esDivision) {
+        for (let i = 0; i < usuariosDivididos.length; i++) {
+          const persona = usuariosDivididos[i];
+          const montoPersona = i === 0 ? Number((individualBase + (centavosRestantes / 100)).toFixed(2)) : individualBase;
+
+          await firedb.collection('caja-chica').add({
+            cantidad: montoPersona,
+            fecha: fecha,
+            hora: hora || obtenerHoraActual(),
+            descripcion: descripcion.trim() || categoriaGasto,
+            idUser: parseUserId(idUsuario),
+            tipo: 1, // 1 = Egreso
+            categoria: categoriaGasto,
+            subcategoria: subcategoriaGasto.trim() || null,
+            cuentaOrigen: cuentaOrigenGasto,
+            metodoPago: metodoPagoGasto,
+            comercio: comercioGasto.trim() || null,
+            esRecurrente: esRecurrenteGasto,
+            estado: estadoGasto,
+            cuotas: esTarjetaCredito ? cuotasNumero : 1,
+            attachmentUrl: urlFinalComprobante || null,
+            urlComprobante: urlFinalComprobante || null,
+            usuarioGasto: persona,
+            tarjetaCreditoNombre: esTarjetaCredito ? (tarjetaActualSeleccionada?.nombre || null) : null,
+            tarjetaCreditoId: esTarjetaCredito ? (tarjetaActualSeleccionada?.id || null) : null,
+            tarjetaEsFamiliar: true,
+            fechaCorte: cicloAsignado ? cicloAsignado.fechaCorte : null,
+            fechaPago: cicloAsignado ? cicloAsignado.fechaPago : null,
+            claveCiclo: cicloAsignado ? cicloAsignado.claveCiclo : null,
+            esGastoDividido: true,
+            grupoDivisionId: grupoDivisionId,
+            montoTotalGrupal: montoNumerico,
+            montoIndividual: montoPersona,
+            usuariosEnGrupo: usuariosDivididos,
+            cantidadEnGrupo: N
+          });
+        }
+      } else {
+        await firedb.collection('caja-chica').add({
+          cantidad: montoNumerico,
+          fecha: fecha,
+          hora: hora || obtenerHoraActual(),
+          descripcion: descripcion.trim() || categoriaGasto,
+          idUser: parseUserId(idUsuario),
+          tipo: 1, // 1 = Egreso
+          categoria: categoriaGasto,
+          subcategoria: subcategoriaGasto.trim() || null,
+          cuentaOrigen: cuentaOrigenGasto,
+          metodoPago: metodoPagoGasto,
+          comercio: comercioGasto.trim() || null,
+          esRecurrente: esRecurrenteGasto,
+          estado: estadoGasto,
+          cuotas: esTarjetaCredito ? cuotasNumero : 1,
+          attachmentUrl: urlFinalComprobante || null,
+          urlComprobante: urlFinalComprobante || null,
+          usuarioGasto: tcEsFamiliar ? (usuarioGasto || 'Usuario 1') : null,
+          tarjetaCreditoNombre: esTarjetaCredito ? (tarjetaActualSeleccionada?.nombre || null) : null,
+          tarjetaCreditoId: esTarjetaCredito ? (tarjetaActualSeleccionada?.id || null) : null,
+          tarjetaEsFamiliar: esTarjetaCredito ? tcEsFamiliar : false,
+          fechaCorte: cicloAsignado ? cicloAsignado.fechaCorte : null,
+          fechaPago: cicloAsignado ? cicloAsignado.fechaPago : null,
+          claveCiclo: cicloAsignado ? cicloAsignado.claveCiclo : null
+        });
+      }
 
       // Recordar preferencias en el almacenamiento local para inteligencia de usuario
       localStorage.setItem('ultimo_usuario_gasto', usuarioGasto);
@@ -824,13 +943,23 @@ export default function AddData() {
         localStorage.setItem('ultimo_comercio_gasto', comercioGasto.trim());
       }
 
-      _swal({
-        title: '¡Gasto Registrado!',
-        text: `Se registraron Q ${montoNumerico.toFixed(2)} en ${categoriaGasto}.`,
-        icon: 'success',
-        timer: 1300,
-        buttons: false
-      });
+      if (esDivision) {
+        _swal({
+          title: '¡Gasto Dividido Registrado!',
+          text: `Se registraron Q ${montoNumerico.toFixed(2)} divididos entre ${N} personas (Q ${(montoNumerico / N).toFixed(2)} c/u).`,
+          icon: 'success',
+          timer: 1600,
+          buttons: false
+        });
+      } else {
+        _swal({
+          title: '¡Gasto Registrado!',
+          text: `Se registraron Q ${montoNumerico.toFixed(2)} en ${categoriaGasto}.`,
+          icon: 'success',
+          timer: 1300,
+          buttons: false
+        });
+      }
 
       historial.push('/home');
     } catch (error) {
@@ -1606,35 +1735,133 @@ export default function AddData() {
             {/* SECCIÓN DE USUARIOS: ¿QUIÉN REALIZÓ ESTE GASTO? (Solo si es Tarjeta Familiar) */}
             {tcEsFamiliar && (
               <div className="bloque-asignacion-usuario-gasto mb-3">
-                <div className="d-flex justify-content-between align-items-center mb-1">
+                <div className="d-flex justify-content-between align-items-center mb-2">
                   <label className="etiqueta-campo-finanzia mb-0">
                     <i className="fas fa-user-tag mr-1" style={{ color: '#4E44EB' }}></i>
-                    ¿Quién realizó este gasto? (Familiar)
+                    {modoDividirCuenta ? 'Dividir gasto entre familiares' : '¿Quién realizó este gasto? (Familiar)'}
                   </label>
-                  <button
-                    type="button"
-                    className="btn btn-xs btn-link p-0"
-                    style={{ fontSize: '0.75rem', color: '#4E44EB', fontWeight: 700, textDecoration: 'none' }}
-                    onClick={() => setMostrarInputNuevoUsuario(!mostrarInputNuevoUsuario)}
-                  >
-                    {mostrarInputNuevoUsuario ? '✕ Cancelar' : '+ Agregar familiar'}
-                  </button>
+                  <div className="d-flex align-items-center gap-2">
+                    {/* Botón con Icono de Dividir Cuenta */}
+                    <button
+                      type="button"
+                      className={`btn btn-xs ${modoDividirCuenta ? 'btn-success text-white shadow-sm' : 'btn-outline-primary'}`}
+                      style={{
+                        fontSize: '0.74rem',
+                        fontWeight: 700,
+                        borderRadius: '20px',
+                        padding: '3px 10px',
+                        transition: 'all 0.2s ease'
+                      }}
+                      onClick={alternarModoDividirCuenta}
+                      title={modoDividirCuenta ? 'Volver a asignación individual' : 'Dividir la cuenta entre varios familiares'}
+                    >
+                      <i className={`fas ${modoDividirCuenta ? 'fa-check' : 'fa-users'} mr-1`}></i>
+                      {modoDividirCuenta ? 'Modo Dividido Activo' : 'Dividir cuenta'}
+                    </button>
+
+                    <button
+                      type="button"
+                      className="btn btn-xs btn-link p-0"
+                      style={{ fontSize: '0.75rem', color: '#4E44EB', fontWeight: 700, textDecoration: 'none' }}
+                      onClick={() => setMostrarInputNuevoUsuario(!mostrarInputNuevoUsuario)}
+                    >
+                      {mostrarInputNuevoUsuario ? '✕ Cancelar' : '+ Agregar familiar'}
+                    </button>
+                  </div>
                 </div>
 
-                {/* Selector de píldoras de usuarios */}
-                <div className="d-flex flex-wrap gap-2 mb-1">
-                  {listaUsuariosDisponibles.map((u) => (
-                    <button
-                      key={u}
-                      type="button"
-                      className={`pildora-usuario-selector ${usuarioGasto === u ? 'activa' : ''}`}
-                      onClick={() => setUsuarioGasto(u)}
-                    >
-                      <i className="fas fa-user-circle mr-1"></i>
-                      {u}
-                    </button>
-                  ))}
-                </div>
+                {/* MODO A: ASIGNACIÓN INDIVIDUAL NORMAL (Default) */}
+                {!modoDividirCuenta ? (
+                  <div className="d-flex flex-wrap gap-2 mb-1">
+                    {listaUsuariosDisponibles.map((u) => (
+                      <button
+                        key={u}
+                        type="button"
+                        className={`pildora-usuario-selector ${usuarioGasto === u ? 'activa' : ''}`}
+                        onClick={() => setUsuarioGasto(u)}
+                      >
+                        <i className="fas fa-user-circle mr-1"></i>
+                        {u}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  /* MODO B: DIVISIÓN DE CUENTA MULTI-USUARIO */
+                  <div className="p-3 rounded border" style={{ backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }}>
+                    <div className="d-flex justify-content-between align-items-center mb-2">
+                      <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#166534' }}>
+                        <i className="fas fa-users-cog mr-1"></i> Selecciona los familiares que compartirán este gasto:
+                      </span>
+                      <div className="d-flex gap-2 align-items-center">
+                        <button
+                          type="button"
+                          className="btn btn-link p-0 text-success font-weight-bold"
+                          style={{ fontSize: '0.72rem', textDecoration: 'none' }}
+                          onClick={seleccionarTodosLosFamiliares}
+                        >
+                          Seleccionar todos
+                        </button>
+                        <span className="text-muted" style={{ fontSize: '0.72rem' }}>•</span>
+                        <button
+                          type="button"
+                          className="btn btn-link p-0 text-danger font-weight-bold"
+                          style={{ fontSize: '0.72rem', textDecoration: 'none' }}
+                          onClick={deseleccionarTodosLosFamiliares}
+                        >
+                          Limpiar
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Píldoras de selección múltiple */}
+                    <div className="d-flex flex-wrap gap-2 mb-2">
+                      {listaUsuariosDisponibles.map((u) => {
+                        const seleccionado = usuariosDivididos.includes(u);
+                        return (
+                          <button
+                            key={u}
+                            type="button"
+                            className={`pildora-usuario-selector ${seleccionado ? 'activa' : ''}`}
+                            style={seleccionado ? { backgroundColor: '#10B981', borderColor: '#10B981', color: '#FFFFFF' } : {}}
+                            onClick={() => toggleUsuarioDividido(u)}
+                          >
+                            <i className={`fas ${seleccionado ? 'fa-check-circle' : 'fa-circle'} mr-1`}></i>
+                            {u}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Resumen del cálculo en vivo */}
+                    {usuariosDivididos.length >= 2 ? (
+                      <div className="p-2 bg-white rounded border" style={{ borderColor: '#BBF7D0' }}>
+                        <div className="d-flex justify-content-between align-items-center">
+                          <span style={{ fontSize: '0.82rem', color: '#1E1F30' }}>
+                            <strong className="text-success" style={{ fontSize: '0.95rem' }}>
+                              Q {(parseFloat(monto) > 0 ? (parseFloat(monto) / usuariosDivididos.length).toFixed(2) : '0.00')}
+                            </strong> c/u
+                            <span className="text-muted ml-1">({usuariosDivididos.length} personas)</span>
+                          </span>
+                          <span className="text-muted" style={{ fontSize: '0.76rem' }}>
+                            Total a dividir: <strong>Q {parseFloat(monto) > 0 ? parseFloat(monto).toFixed(2) : '0.00'}</strong>
+                          </span>
+                        </div>
+                        <div className="d-flex flex-wrap gap-1 mt-2 pt-1 border-top">
+                          {usuariosDivididos.map(u => (
+                            <span key={u} className="badge badge-light border" style={{ fontSize: '0.72rem', color: '#166534', backgroundColor: '#DCFCE7' }}>
+                              <i className="fas fa-user-check mr-1 text-success"></i>{u}: Q {parseFloat(monto) > 0 ? (parseFloat(monto) / usuariosDivididos.length).toFixed(2) : '0.00'}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-warning mt-1" style={{ fontSize: '0.76rem', fontWeight: 600 }}>
+                        <i className="fas fa-exclamation-triangle mr-1"></i>
+                        Selecciona al menos 2 familiares para calcular la división equitativa.
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Formulario rápido para agregar familiar */}
                 {mostrarInputNuevoUsuario && (
@@ -1651,6 +1878,9 @@ export default function AddData() {
                           const n = nuevoUsuarioInline.trim();
                           if (n) {
                             setUsuarioGasto(n);
+                            if (modoDividirCuenta) {
+                              setUsuariosDivididos(prev => [...prev, n]);
+                            }
                             setNuevoUsuarioInline('');
                             setMostrarInputNuevoUsuario(false);
                           }
@@ -1665,6 +1895,9 @@ export default function AddData() {
                         const n = nuevoUsuarioInline.trim();
                         if (n) {
                           setUsuarioGasto(n);
+                          if (modoDividirCuenta) {
+                            setUsuariosDivididos(prev => [...prev, n]);
+                          }
                           setNuevoUsuarioInline('');
                           setMostrarInputNuevoUsuario(false);
                         }
