@@ -36,7 +36,7 @@ const TARJETA_PREDETERMINADA = {
   fechaCorte: '2026-11-06',
   fechaPago: '2026-12-01',
   cuotasPredeterminadas: 1,
-  usuariosInvolucrados: ['Usuario 1', 'Usuario 2', 'Usuario 3']
+  usuariosInvolucrados: []
 };
 
 export default function TarjetaFamiliar() {
@@ -64,7 +64,7 @@ export default function TarjetaFamiliar() {
   const [editFechaCorte, setEditFechaCorte] = useState('2026-11-06');
   const [editFechaPago, setEditFechaPago] = useState('2026-12-01');
   const [editCuotas, setEditCuotas] = useState(1);
-  const [editUsuarios, setEditUsuarios] = useState(['Usuario 1', 'Usuario 2', 'Usuario 3']);
+  const [editUsuarios, setEditUsuarios] = useState([]);
   const [nuevoNombreUsuarioInput, setNuevoNombreUsuarioInput] = useState('');
   const [guardandoTarjeta, setGuardandoTarjeta] = useState(false);
 
@@ -333,8 +333,8 @@ export default function TarjetaFamiliar() {
 
     const mapa = {};
     const usuariosRegistrados = (tarjetaActual?.usuariosInvolucrados && tarjetaActual.usuariosInvolucrados.length > 0)
-      ? tarjetaActual.usuariosInvolucrados
-      : ['Usuario 1', 'Usuario 2', 'Usuario 3'];
+      ? tarjetaActual.usuariosInvolucrados.filter(u => u && !/^Usuario\s*\d+$/i.test(u.trim()))
+      : [];
 
     // Inicializar cada usuario registrado con monto 0
     usuariosRegistrados.forEach((nombre, idx) => {
@@ -397,7 +397,9 @@ export default function TarjetaFamiliar() {
       setEditFechaCorte(formatearAFechaInput(tarjetaActual.fechaCorte || '2026-11-06'));
       setEditFechaPago(formatearAFechaInput(tarjetaActual.fechaPago || '2026-12-01'));
       setEditCuotas(tarjetaActual.cuotasPredeterminadas || 1);
-      setEditUsuarios([...(tarjetaActual.usuariosInvolucrados || ['Usuario 1', 'Usuario 2'])]);
+      const uLimpios = (Array.isArray(tarjetaActual.usuariosInvolucrados) ? tarjetaActual.usuariosInvolucrados : [])
+        .filter(u => u && !/^Usuario\s*\d+$/i.test(u.trim()));
+      setEditUsuarios(uLimpios);
     } else {
       setEditHabilitarTarjeta(true);
       setEditEsFamiliar(false); // Por defecto es personal
@@ -405,7 +407,7 @@ export default function TarjetaFamiliar() {
       setEditFechaCorte('2026-11-06');
       setEditFechaPago('2026-12-01');
       setEditCuotas(1);
-      setEditUsuarios(['Usuario 1', 'Usuario 2']);
+      setEditUsuarios([]);
     }
     setNuevoNombreUsuarioInput('');
     setMostrarModalConfig(true);
@@ -415,6 +417,10 @@ export default function TarjetaFamiliar() {
   const agregarUsuarioALista = () => {
     const limpio = nuevoNombreUsuarioInput.trim();
     if (!limpio) return;
+    if (/^Usuario\s*\d+$/i.test(limpio)) {
+      _swal('Nombre personal requerido', 'Ingresa el nombre personal del familiar (ej. Daniel, Sofía, Papá).', 'info');
+      return;
+    }
     if (editUsuarios.includes(limpio)) {
       _swal('Usuario duplicado', `"${limpio}" ya está en la lista de esta tarjeta.`, 'warning');
       return;
@@ -425,10 +431,6 @@ export default function TarjetaFamiliar() {
 
   // Eliminar usuario de la lista de la tarjeta familiar
   const eliminarUsuarioDeLista = (usuarioAEliminar) => {
-    if (editUsuarios.length <= 1) {
-      _swal('Mínimo 1 usuario', 'La tarjeta familiar debe tener al menos un usuario asignado.', 'info');
-      return;
-    }
     setEditUsuarios(editUsuarios.filter(u => u !== usuarioAEliminar));
   };
 
@@ -1151,7 +1153,7 @@ export default function TarjetaFamiliar() {
                       <input
                         type="text"
                         className="campo-formulario-finanzia"
-                        placeholder="Nombre de familiar (ej. Usuario 1, Usuario 2)..."
+                        placeholder="Nombre de familiar (ej. Daniel, Mamá)..."
                         value={nuevoNombreUsuarioInput}
                         onChange={(e) => setNuevoNombreUsuarioInput(e.target.value)}
                         onKeyDown={(e) => {

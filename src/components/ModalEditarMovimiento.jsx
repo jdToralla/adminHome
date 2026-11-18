@@ -129,7 +129,7 @@ export default function ModalEditarMovimiento({ show, movimiento, onHide, onGuar
   const [guardando, setGuardando] = useState(false);
   const [modalImagenGrande, setModalImagenGrande] = useState(null);
   const [tarjetasGuardadas, setTarjetasGuardadas] = useState([]);
-  const [usuariosFrecuentes, setUsuariosFrecuentes] = useState(['Usuario 1', 'Usuario 2', 'Usuario 3']);
+  const [usuariosFrecuentes, setUsuariosFrecuentes] = useState([]);
 
   // División de cuenta entre familiares
   const [modoDividirCuenta, setModoDividirCuenta] = useState(false);
@@ -179,11 +179,15 @@ export default function ModalEditarMovimiento({ show, movimiento, onHide, onGuar
     const estadoDetectado = movimiento.estado || movimiento.status || (tipoDetectado === 2 ? 'Confirmado' : 'Pagado');
     setEstado(estadoDetectado);
 
-    setUsuarioGasto(movimiento.usuarioGasto || 'Usuario 1');
+    const usuarioDetectado = (movimiento.usuarioGasto && !/^Usuario\s*\d+$/i.test(movimiento.usuarioGasto.trim()))
+      ? movimiento.usuarioGasto.trim()
+      : (localStorage.getItem('currentUserName') || '');
+    setUsuarioGasto(usuarioDetectado);
 
     // Precargar integrantes y montos si el gasto ya estaba dividido
     if (esDividido) {
-      const integrantes = movimiento.usuariosEnGrupo || (movimiento.usuarioGasto ? [movimiento.usuarioGasto] : []);
+      const integrantes = (movimiento.usuariosEnGrupo || (movimiento.usuarioGasto ? [movimiento.usuarioGasto] : []))
+        .filter(u => u && !/^Usuario\s*\d+$/i.test(u.trim()));
       setUsuariosDivididos(integrantes);
       if (movimiento.desgloseGrupal) {
         setMontosPersonalizados({ ...movimiento.desgloseGrupal });
@@ -195,7 +199,7 @@ export default function ModalEditarMovimiento({ show, movimiento, onHide, onGuar
         setMontosPersonalizados({});
       }
     } else {
-      setUsuariosDivididos(movimiento.usuarioGasto ? [movimiento.usuarioGasto] : []);
+      setUsuariosDivididos(usuarioDetectado ? [usuarioDetectado] : []);
       setMontosPersonalizados({});
     }
 
@@ -222,14 +226,22 @@ export default function ModalEditarMovimiento({ show, movimiento, onHide, onGuar
     setMostrarInputNuevoUsuario(false);
     setNuevoUsuarioInline('');
 
-    // Cargar tarjetas registradas y usuarios de la base de datos
+    // Cargar tarjetas registradas y usuarios de la base de datos (filtrando cualquier "Usuario 1, 2, 3")
     const idUsuario = localStorage.getItem('currentId');
     if (idUsuario) {
       const uidNormalizado = parseUserId(idUsuario);
-      const todosUsuarios = new Set(['Usuario 1', 'Usuario 2', 'Usuario 3']);
-      if (movimiento.usuarioGasto) todosUsuarios.add(movimiento.usuarioGasto);
+      const todosUsuarios = new Set();
+
+      const miUser = localStorage.getItem('currentUserName') || localStorage.getItem('currentUsername');
+      if (miUser && !/^Usuario\s*\d+$/i.test(miUser.trim())) todosUsuarios.add(miUser.trim());
+
+      if (movimiento.usuarioGasto && !/^Usuario\s*\d+$/i.test(movimiento.usuarioGasto.trim())) {
+        todosUsuarios.add(movimiento.usuarioGasto.trim());
+      }
       if (Array.isArray(movimiento.usuariosEnGrupo)) {
-        movimiento.usuariosEnGrupo.forEach(u => todosUsuarios.add(u));
+        movimiento.usuariosEnGrupo.forEach(u => {
+          if (u && !/^Usuario\s*\d+$/i.test(u.trim())) todosUsuarios.add(u.trim());
+        });
       }
 
       firedb.collection('tarjetas-credito')
@@ -241,7 +253,9 @@ export default function ModalEditarMovimiento({ show, movimiento, onHide, onGuar
             setTarjetasGuardadas(listaTc);
             listaTc.forEach(tc => {
               if (Array.isArray(tc.usuariosInvolucrados)) {
-                tc.usuariosInvolucrados.forEach(u => todosUsuarios.add(u));
+                tc.usuariosInvolucrados.forEach(u => {
+                  if (u && !/^Usuario\s*\d+$/i.test(u.trim())) todosUsuarios.add(u.trim());
+                });
               }
             });
             setUsuariosFrecuentes(Array.from(todosUsuarios));
@@ -258,9 +272,13 @@ export default function ModalEditarMovimiento({ show, movimiento, onHide, onGuar
           if (!snap.empty) {
             snap.docs.forEach(docSnap => {
               const d = docSnap.data();
-              if (d.usuarioGasto) todosUsuarios.add(d.usuarioGasto);
+              if (d.usuarioGasto && !/^Usuario\s*\d+$/i.test(d.usuarioGasto.trim())) {
+                todosUsuarios.add(d.usuarioGasto.trim());
+              }
               if (Array.isArray(d.usuariosEnGrupo)) {
-                d.usuariosEnGrupo.forEach(u => todosUsuarios.add(u));
+                d.usuariosEnGrupo.forEach(u => {
+                  if (u && !/^Usuario\s*\d+$/i.test(u.trim())) todosUsuarios.add(u.trim());
+                });
               }
             });
             setUsuariosFrecuentes(Array.from(todosUsuarios));
@@ -279,9 +297,7 @@ export default function ModalEditarMovimiento({ show, movimiento, onHide, onGuar
         if (usuariosFrecuentes.length >= 2) {
           setUsuariosDivididos([...usuariosFrecuentes.slice(0, 3)]);
         } else if (usuarioGasto) {
-          setUsuariosDivididos([usuarioGasto, 'Usuario 2']);
-        } else {
-          setUsuariosDivididos(['Usuario 1', 'Usuario 2']);
+          setUsuariosDivididos([usuarioGasto]);
         }
       }
     }
@@ -1174,19 +1190,26 @@ export default function ModalEditarMovimiento({ show, movimiento, onHide, onGuar
                 {/* MODO A: ASIGNACIÓN INDIVIDUAL (Listado claro de usuarios con píldoras) */}
                 {!modoDividirCuenta ? (
                   <div>
-                    <div className="d-flex flex-wrap gap-2 mb-2">
-                      {usuariosFrecuentes.map((u) => (
-                        <button
-                          key={u}
-                          type="button"
-                          className={`pildora-usuario-selector ${usuarioGasto === u ? 'activa' : ''}`}
-                          onClick={() => setUsuarioGasto(u)}
-                        >
-                          <i className="fas fa-user-circle mr-1"></i>
-                          {u}
-                        </button>
-                      ))}
-                    </div>
+                    {usuariosFrecuentes.length > 0 ? (
+                      <div className="d-flex flex-wrap gap-2 mb-2">
+                        {usuariosFrecuentes.map((u) => (
+                          <button
+                            key={u}
+                            type="button"
+                            className={`pildora-usuario-selector ${usuarioGasto === u ? 'activa' : ''}`}
+                            onClick={() => setUsuarioGasto(u)}
+                          >
+                            <i className="fas fa-user-circle mr-1"></i>
+                            {u}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-muted py-1 mb-2" style={{ fontSize: '0.78rem' }}>
+                        <i className="fas fa-info-circle mr-1 text-primary"></i>
+                        No hay familiares agregados aún. Usa <strong>+ Agregar familiar</strong> para añadir nombres personales.
+                      </div>
+                    )}
                     {usuarioGasto && (
                       <div className="text-muted" style={{ fontSize: '0.75rem' }}>
                         Seleccionado: <strong style={{ color: '#4E44EB' }}>{usuarioGasto}</strong>
@@ -1222,23 +1245,30 @@ export default function ModalEditarMovimiento({ show, movimiento, onHide, onGuar
                     </div>
 
                     {/* Píldoras de selección múltiple */}
-                    <div className="d-flex flex-wrap gap-2 mb-2">
-                      {usuariosFrecuentes.map((u) => {
-                        const seleccionado = usuariosDivididos.includes(u);
-                        return (
-                          <button
-                            key={u}
-                            type="button"
-                            className={`pildora-usuario-selector ${seleccionado ? 'activa' : ''}`}
-                            style={seleccionado ? { backgroundColor: '#10B981', borderColor: '#10B981', color: '#FFFFFF' } : {}}
-                            onClick={() => toggleUsuarioDividido(u)}
-                          >
-                            <i className={`fas ${seleccionado ? 'fa-check-circle' : 'fa-circle'} mr-1`}></i>
-                            {u}
-                          </button>
-                        );
-                      })}
-                    </div>
+                    {usuariosFrecuentes.length > 0 ? (
+                      <div className="d-flex flex-wrap gap-2 mb-2">
+                        {usuariosFrecuentes.map((u) => {
+                          const seleccionado = usuariosDivididos.includes(u);
+                          return (
+                            <button
+                              key={u}
+                              type="button"
+                              className={`pildora-usuario-selector ${seleccionado ? 'activa' : ''}`}
+                              style={seleccionado ? { backgroundColor: '#10B981', borderColor: '#10B981', color: '#FFFFFF' } : {}}
+                              onClick={() => toggleUsuarioDividido(u)}
+                            >
+                              <i className={`fas ${seleccionado ? 'fa-check-circle' : 'fa-circle'} mr-1`}></i>
+                              {u}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-muted py-1 mb-2" style={{ fontSize: '0.78rem' }}>
+                        <i className="fas fa-info-circle mr-1 text-success"></i>
+                        No hay familiares registrados. Agrega al menos 2 familiares usando <strong>+ Agregar familiar</strong>.
+                      </div>
+                    )}
 
                     {/* Selector de Modo de División: En Partes Iguales vs Montos Variables */}
                     {usuariosDivididos.length >= 2 && (

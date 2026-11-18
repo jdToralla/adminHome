@@ -295,7 +295,15 @@ export default function AddData() {
 
   // En Egresos: ¿Quién realizó el gasto?
   const [usuarioGasto, setUsuarioGasto] = useState(() => {
-    return localStorage.getItem('ultimo_usuario_gasto') || 'Usuario 1';
+    const guardado = localStorage.getItem('ultimo_usuario_gasto');
+    if (guardado && !/^Usuario\s*\d+$/i.test(guardado.trim())) {
+      return guardado.trim();
+    }
+    const miUser = localStorage.getItem('currentUserName') || localStorage.getItem('currentUsername');
+    if (miUser && !/^Usuario\s*\d+$/i.test(miUser.trim())) {
+      return miUser.trim();
+    }
+    return '';
   });
   const [mostrarInputNuevoUsuario, setMostrarInputNuevoUsuario] = useState(false);
   const [nuevoUsuarioInline, setNuevoUsuarioInline] = useState('');
@@ -313,7 +321,10 @@ export default function AddData() {
   const [tcIngresoCuotas, setTcIngresoCuotas] = useState(1);
   const [tcIngresoFechaCorte, setTcIngresoFechaCorte] = useState('2026-11-06');
   const [tcIngresoFechaPago, setTcIngresoFechaPago] = useState('2026-12-01');
-  const [tcIngresoUsuarios, setTcIngresoUsuarios] = useState(['Usuario 1', 'Usuario 2']);
+  const [tcIngresoUsuarios, setTcIngresoUsuarios] = useState(() => {
+    const miUser = localStorage.getItem('currentUserName') || localStorage.getItem('currentUsername');
+    return miUser && !/^Usuario\s*\d+$/i.test(miUser.trim()) ? [miUser.trim()] : [];
+  });
   const [tcIngresoNuevoUsuario, setTcIngresoNuevoUsuario] = useState('');
 
   // Cargar tarjetas de crédito del usuario
@@ -344,7 +355,8 @@ export default function AddData() {
           if (primera.fechaCorte) setTcIngresoFechaCorte(formatearAFechaInput(primera.fechaCorte));
           if (primera.fechaPago) setTcIngresoFechaPago(formatearAFechaInput(primera.fechaPago));
           if (primera.usuariosInvolucrados && primera.usuariosInvolucrados.length > 0) {
-            setTcIngresoUsuarios(primera.usuariosInvolucrados);
+            const limpios = primera.usuariosInvolucrados.filter(u => u && !/^Usuario\s*\d+$/i.test(u.trim()));
+            setTcIngresoUsuarios(limpios);
           }
         } else {
           setTarjetasDisponibles([]);
@@ -384,11 +396,19 @@ export default function AddData() {
       : tarjetasDisponibles.find(t => t.esFamiliar === true && t.habilitarTarjeta !== false);
 
     const usuariosTc = tarjetaFamiliarEncontrada?.usuariosInvolucrados || tarjetaActualSeleccionada?.usuariosInvolucrados || [];
-    const base = usuariosTc.length > 0 ? usuariosTc : ['Usuario 1', 'Usuario 2'];
-    if (usuarioGasto && !base.includes(usuarioGasto)) {
-      return [...base, usuarioGasto];
+    // Filtrar completamente "Usuario 1", "Usuario 2", etc.
+    const filtrados = (Array.isArray(usuariosTc) ? usuariosTc : [])
+      .filter(u => typeof u === 'string' && u.trim() && !/^Usuario\s*\d+$/i.test(u.trim()));
+
+    const resultado = new Set(filtrados);
+    const miUsuario = localStorage.getItem('currentUserName') || localStorage.getItem('currentUsername');
+    if (miUsuario && !/^Usuario\s*\d+$/i.test(miUsuario.trim())) {
+      resultado.add(miUsuario.trim());
     }
-    return base;
+    if (usuarioGasto && !/^Usuario\s*\d+$/i.test(usuarioGasto.trim())) {
+      resultado.add(usuarioGasto.trim());
+    }
+    return Array.from(resultado);
   }, [tarjetaActualSeleccionada, tarjetasDisponibles, usuarioGasto]);
 
   // Alternar modo dividir cuenta entre varios familiares
@@ -399,8 +419,8 @@ export default function AddData() {
       if (usuariosDivididos.length === 0) {
         if (listaUsuariosDisponibles.length >= 2) {
           setUsuariosDivididos([...listaUsuariosDisponibles]);
-        } else {
-          setUsuariosDivididos(listaUsuariosDisponibles.length > 0 ? [listaUsuariosDisponibles[0]] : ['Usuario 1']);
+        } else if (listaUsuariosDisponibles.length === 1) {
+          setUsuariosDivididos([listaUsuariosDisponibles[0]]);
         }
       }
     }
@@ -887,7 +907,7 @@ export default function AddData() {
         isRecurring: esRecurrenteGasto,
         recurrenceFrequency: esRecurrenteGasto ? frecuenciaGasto : null,
         dueDate: vencimientoGasto || null,
-        usuarioGasto: tcEsFamiliar ? (usuarioGasto || 'Usuario 1') : null,
+        usuarioGasto: tcEsFamiliar ? (usuarioGasto || localStorage.getItem('currentUserName') || null) : null,
         creditCardDetails: esTarjetaCredito ? {
           cardName: tarjetaActualSeleccionada?.nombre || 'Tarjeta de Crédito',
           cardId: tarjetaActualSeleccionada?.id || null,
@@ -1035,7 +1055,7 @@ export default function AddData() {
           cuotas: esTarjetaCredito ? cuotasNumero : 1,
           attachmentUrl: urlFinalComprobante || null,
           urlComprobante: urlFinalComprobante || null,
-          usuarioGasto: tcEsFamiliar ? (usuarioGasto || 'Usuario 1') : null,
+          usuarioGasto: tcEsFamiliar ? (usuarioGasto || localStorage.getItem('currentUserName') || null) : null,
           tarjetaCreditoNombre: esTarjetaCredito ? (tarjetaActualSeleccionada?.nombre || null) : null,
           tarjetaCreditoId: esTarjetaCredito ? (tarjetaActualSeleccionada?.id || null) : null,
           tarjetaEsFamiliar: esTarjetaCredito ? tcEsFamiliar : false,
@@ -1413,7 +1433,7 @@ export default function AddData() {
                           <input
                             type="text"
                             className="campo-formulario-finanzia"
-                            placeholder="Escribe nuevo usuario (ej. Usuario 1, Usuario 2)..."
+                            placeholder="Escribe el nombre del familiar (ej. Daniel, Mamá)..."
                             value={tcIngresoNuevoUsuario}
                             onChange={(e) => setTcIngresoNuevoUsuario(e.target.value)}
                             onKeyDown={(e) => {
@@ -1886,19 +1906,26 @@ export default function AddData() {
 
                 {/* MODO A: ASIGNACIÓN INDIVIDUAL NORMAL (Default) */}
                 {!modoDividirCuenta ? (
-                  <div className="d-flex flex-wrap gap-2 mb-1">
-                    {listaUsuariosDisponibles.map((u) => (
-                      <button
-                        key={u}
-                        type="button"
-                        className={`pildora-usuario-selector ${usuarioGasto === u ? 'activa' : ''}`}
-                        onClick={() => setUsuarioGasto(u)}
-                      >
-                        <i className="fas fa-user-circle mr-1"></i>
-                        {u}
-                      </button>
-                    ))}
-                  </div>
+                  listaUsuariosDisponibles.length > 0 ? (
+                    <div className="d-flex flex-wrap gap-2 mb-1">
+                      {listaUsuariosDisponibles.map((u) => (
+                        <button
+                          key={u}
+                          type="button"
+                          className={`pildora-usuario-selector ${usuarioGasto === u ? 'activa' : ''}`}
+                          onClick={() => setUsuarioGasto(u)}
+                        >
+                          <i className="fas fa-user-circle mr-1"></i>
+                          {u}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-muted py-1" style={{ fontSize: '0.78rem' }}>
+                      <i className="fas fa-info-circle mr-1 text-primary"></i>
+                      No hay familiares agregados aún. Usa <strong>+ Agregar familiar</strong> para añadir los nombres personales.
+                    </div>
+                  )
                 ) : (
                   /* MODO B: DIVISIÓN DE CUENTA MULTI-USUARIO */
                   <div className="p-3 rounded border" style={{ backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }}>
@@ -2090,7 +2117,7 @@ export default function AddData() {
                     <input
                       type="text"
                       className="campo-formulario-finanzia"
-                      placeholder="Nombre del familiar (ej. Usuario 4, Papá)..."
+                      placeholder="Nombre del familiar (ej. Daniel, Papá)..."
                       value={nuevoUsuarioInline}
                       onChange={(e) => setNuevoUsuarioInline(e.target.value)}
                       onKeyDown={(e) => {
