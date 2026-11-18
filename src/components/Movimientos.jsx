@@ -87,6 +87,8 @@ export default function Movimientos() {
     if (itemSeleccionado && itemSeleccionado.id === itemActualizado.id) {
       setItemSeleccionado(itemActualizado);
     }
+    // Recargar la lista de movimientos para reflejar hermanos creados/eliminados en caso de división
+    cargarMovimientos();
   };
 
   // Estados de filtros
