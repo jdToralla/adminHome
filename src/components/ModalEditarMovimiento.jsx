@@ -469,12 +469,12 @@ export default function ModalEditarMovimiento({ show, movimiento, onHide, onGuar
         onHide={onHide}
         centered
         backdrop="static"
-        dialogClassName="modal-bottom-sheet-dialog modal-dialog-scrollable modal-editar-movimiento-dialog"
+        dialogClassName="modal-editar-movimiento-dialog"
       >
-        <div className="p-4 bg-white rounded-top-custom">
+        <div className="modal-editar-contenedor">
 
-          {/* Encabezado del Modal con Icono de Lápiz */}
-          <div className="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+          {/* Encabezado fijo del Modal con Icono de Lápiz */}
+          <div className="modal-editar-cabecera">
             <div className="d-flex align-items-center gap-2">
               <div
                 style={{
@@ -512,7 +512,8 @@ export default function ModalEditarMovimiento({ show, movimiento, onHide, onGuar
             </button>
           </div>
 
-          <form onSubmit={guardarCambios}>
+          <form onSubmit={guardarCambios} className="modal-editar-formulario">
+            <div className="modal-editar-cuerpo">
 
             {/* 1. Selector de Tipo: Ingreso vs Egreso */}
             <div className="mb-3">
@@ -1048,9 +1049,12 @@ export default function ModalEditarMovimiento({ show, movimiento, onHide, onGuar
                 </div>
               )}
             </div>
+            {/* Fin de la sección de Comprobante */}
+          </div>
+          {/* Fin de modal-editar-cuerpo con scroll */}
 
-            {/* 12. Botones de Acción del Formulario */}
-            <div className="d-flex gap-2 pt-2 border-top">
+          {/* 12. Pie Fijo de Acciones del Formulario */}
+            <div className="modal-editar-pie">
               <button
                 type="button"
                 className="btn btn-light flex-grow-1 py-2 font-weight-bold"

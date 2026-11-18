@@ -623,7 +623,7 @@ export default function Movimientos() {
             return (
               <div
                 key={item.id}
-                className="fila-transaccion-moderna"
+                className="fila-transaccion-moderna mb-2"
                 onClick={() => {
                   setItemSeleccionado(item);
                   setMostrarModalDetalle(true);
@@ -682,17 +682,6 @@ export default function Movimientos() {
                     <span className={`transaccion-monto ${esIngreso ? 'ingreso' : 'gasto'}`}>
                       {esIngreso ? '+' : '-'} Q {cantidadNum.toFixed(2)}
                     </span>
-                    <button
-                      type="button"
-                      className="btn-lapiz-fila-transaccion"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        abrirModalEdicion(item);
-                      }}
-                      title="Editar transacción"
-                    >
-                      <i className="fas fa-pencil-alt"></i>
-                    </button>
                   </div>
                   {(item.cuentaOrigen || item.cuentaDestino) && (
                     <span className="transaccion-cuenta-tag">

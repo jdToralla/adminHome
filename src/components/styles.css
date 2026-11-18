@@ -3293,13 +3293,133 @@
 /* =============================================================== */
 .modal-editar-movimiento-dialog {
   max-width: 580px;
-  margin: 1.75rem auto;
+  width: 95%;
+  margin: 1.5rem auto;
 }
 
+.modal-editar-movimiento-dialog .modal-content {
+  border-radius: 20px;
+  border: none;
+  background: #FFFFFF;
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  max-height: 90vh;
+}
+
+.modal-editar-contenedor {
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  background: #FFFFFF;
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.modal-editar-cabecera {
+  padding: 16px 20px;
+  background: #FFFFFF;
+  border-bottom: 1px solid #F1F2F4;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.modal-editar-formulario {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.modal-editar-cuerpo {
+  padding: 20px;
+  overflow-y: auto !important;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Scrollbar moderna y visible */
+.modal-editar-cuerpo::-webkit-scrollbar {
+  width: 6px;
+}
+.modal-editar-cuerpo::-webkit-scrollbar-track {
+  background: #F3F4F6;
+  border-radius: 4px;
+}
+.modal-editar-cuerpo::-webkit-scrollbar-thumb {
+  background: #D1D5DB;
+  border-radius: 4px;
+}
+.modal-editar-cuerpo::-webkit-scrollbar-thumb:hover {
+  background: #4E44EB;
+}
+
+.modal-editar-pie {
+  padding: 14px 20px;
+  background: #FFFFFF;
+  border-top: 1px solid #F1F2F4;
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+/* Modal Bottom Sheet genérico con scroll garantizado */
+.modal-bottom-sheet-dialog .modal-content {
+  border-radius: 20px;
+  border: none;
+  max-height: 90vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Adaptación para pantallas móviles */
 @media (max-width: 576px) {
   .modal-editar-movimiento-dialog {
+    max-width: 100%;
+    width: 100%;
+    margin: 0;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+  }
+
+  .modal-editar-movimiento-dialog .modal-content {
+    border-radius: 24px 24px 0 0;
+    max-height: 92vh;
+    height: 92vh;
+  }
+
+  .modal-editar-contenedor {
+    max-height: 92vh;
+    height: 92vh;
+    border-radius: 24px 24px 0 0;
+  }
+
+  .modal-editar-cuerpo {
+    padding: 16px;
+  }
+
+  .modal-bottom-sheet-dialog {
     margin: 0;
     max-width: 100%;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+  }
+
+  .modal-bottom-sheet-dialog .modal-content {
+    border-radius: 24px 24px 0 0;
+    max-height: 92vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 }
 
