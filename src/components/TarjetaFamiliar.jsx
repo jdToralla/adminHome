@@ -24,6 +24,21 @@ const parseUserId = (id) => {
   return !isNaN(num) && num.toString() === str ? num : str;
 };
 
+/**
+ * Tarjeta de crédito predeterminada para visualización completa de interfaz
+ */
+const TARJETA_PREDETERMINADA = {
+  id: 'tc-familiar-default',
+  nombre: 'VISA Plata',
+  habilitarTarjeta: true,
+  esFamiliar: true,
+  activa: true,
+  fechaCorte: '2026-11-06',
+  fechaPago: '2026-12-01',
+  cuotasPredeterminadas: 1,
+  usuariosInvolucrados: ['Usuario 1', 'Usuario 2', 'Usuario 3']
+};
+
 export default function TarjetaFamiliar() {
   const historial = useHistory();
   const ubicacion = useLocation();
@@ -44,12 +59,12 @@ export default function TarjetaFamiliar() {
 
   // Estados del formulario en modal con los 2 switches
   const [editHabilitarTarjeta, setEditHabilitarTarjeta] = useState(true); // Switch 1
-  const [editEsFamiliar, setEditEsFamiliar] = useState(false); // Switch 2
+  const [editEsFamiliar, setEditEsFamiliar] = useState(true); // Switch 2
   const [editNombreTarjeta, setEditNombreTarjeta] = useState('VISA Plata');
   const [editFechaCorte, setEditFechaCorte] = useState('2026-11-06');
   const [editFechaPago, setEditFechaPago] = useState('2026-12-01');
   const [editCuotas, setEditCuotas] = useState(1);
-  const [editUsuarios, setEditUsuarios] = useState(['Usuario 1', 'Usuario 2']);
+  const [editUsuarios, setEditUsuarios] = useState(['Usuario 1', 'Usuario 2', 'Usuario 3']);
   const [nuevoNombreUsuarioInput, setNuevoNombreUsuarioInput] = useState('');
   const [guardandoTarjeta, setGuardandoTarjeta] = useState(false);
 
@@ -70,7 +85,7 @@ export default function TarjetaFamiliar() {
       const idUsuario = localStorage.getItem('currentId');
       const uidNormalizado = parseUserId(idUsuario);
 
-      // Cargar tarjetas de crédito registradas (sin autogenerar datos quemados)
+      // Cargar tarjetas de crédito registradas
       let listaTarjetas = [];
       try {
         const snapTarjetas = await firedb
@@ -87,7 +102,7 @@ export default function TarjetaFamiliar() {
 
       setTarjetas(listaTarjetas);
 
-      // Seleccionar tarjeta activa
+      // Seleccionar tarjeta activa o inicializar con la predeterminada
       if (listaTarjetas.length > 0) {
         const searchParams = new URLSearchParams(ubicacion.search);
         const paramTarjeta = searchParams.get('tarjeta');
@@ -103,8 +118,12 @@ export default function TarjetaFamiliar() {
           }
         }
       } else {
-        setTarjetaSeleccionadaId('');
-        setCicloSeleccionadoClave('');
+        setTarjetaSeleccionadaId(TARJETA_PREDETERMINADA.id);
+        const ciclosSugeridos = generarCiclosSugeridos(TARJETA_PREDETERMINADA.fechaCorte, TARJETA_PREDETERMINADA.fechaPago);
+        const cicloActivo = ciclosSugeridos.find(c => c.tipo === 'actual') || ciclosSugeridos[0];
+        if (cicloActivo) {
+          setCicloSeleccionadoClave(cicloActivo.clave);
+        }
       }
 
       // Cargar egresos desde caja-chica
@@ -124,17 +143,16 @@ export default function TarjetaFamiliar() {
     }
   };
 
-  // Tarjeta de crédito seleccionada actualmente
+  // Tarjeta de crédito seleccionada actualmente (con fallback a la predeterminada para ver la interfaz completa)
   const tarjetaActual = useMemo(() => {
-    if (!tarjetaSeleccionadaId || tarjetas.length === 0) return null;
-    return tarjetas.find(t => t.id === tarjetaSeleccionadaId) || tarjetas[0] || null;
+    if (tarjetas.length > 0) {
+      return tarjetas.find(t => t.id === tarjetaSeleccionadaId) || tarjetas[0];
+    }
+    return TARJETA_PREDETERMINADA;
   }, [tarjetas, tarjetaSeleccionadaId]);
 
-  // Si la tarjeta está habilitada
-  const tieneTarjetaActiva = Boolean(tarjetaActual && tarjetaActual.habilitarTarjeta !== false);
-
   // Si es tarjeta familiar compartida (Switch 2)
-  const esTarjetaFamiliar = Boolean(tieneTarjetaActiva && tarjetaActual.esFamiliar === true);
+  const esTarjetaFamiliar = Boolean(tarjetaActual?.esFamiliar !== false);
 
   // Lista de ciclos disponibles calculados para la tarjeta seleccionada
   const opcionesCiclos = useMemo(() => {
@@ -215,7 +233,9 @@ export default function TarjetaFamiliar() {
     if (!esTarjetaFamiliar || !tarjetaActual) return [];
 
     const mapa = {};
-    const usuariosRegistrados = tarjetaActual.usuariosInvolucrados || [];
+    const usuariosRegistrados = (tarjetaActual?.usuariosInvolucrados && tarjetaActual.usuariosInvolucrados.length > 0)
+      ? tarjetaActual.usuariosInvolucrados
+      : ['Usuario 1', 'Usuario 2', 'Usuario 3'];
 
     // Inicializar cada usuario registrado con monto 0
     usuariosRegistrados.forEach((nombre, idx) => {
@@ -435,27 +455,6 @@ export default function TarjetaFamiliar() {
             Cargando información de tu tarjeta...
           </p>
         </div>
-      ) : !tieneTarjetaActiva ? (
-        /* =============================================================== */
-        /* ESTADO VACÍO CUANDO NO HAY TARJETA CONFIGURADA O ESTÁ DESACTIVADA */
-        /* =============================================================== */
-        <div className="tarjeta-widget-home text-center py-5 mb-3">
-          <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>💳</div>
-          <h5 className="font-weight-bold" style={{ color: '#1E1F30' }}>
-            No tienes ninguna tarjeta configurada
-          </h5>
-          <p className="text-muted mx-auto mb-4" style={{ fontSize: '0.85rem', maxWidth: '380px' }}>
-            Activa el switch para configurar tu tarjeta de crédito personal o una tarjeta familiar si deseas repartir los gastos entre varios miembros.
-          </p>
-          <button
-            type="button"
-            className="btn btn-primary px-4 py-2"
-            style={{ background: '#4E44EB', borderColor: '#4E44EB', borderRadius: '14px', fontWeight: 700 }}
-            onClick={abrirModalConfiguracion}
-          >
-            <i className="fas fa-cog mr-2"></i> Configurar Tarjeta
-          </button>
-        </div>
       ) : (
         <>
           {/* =============================================================== */}
@@ -561,7 +560,7 @@ export default function TarjetaFamiliar() {
           </div>
 
           {/* =============================================================== */}
-          {/* 4. GRÁFICA VISUAL: SOLO SI ES TARJETA FAMILIAR                 */}
+          {/* 4. GRÁFICA VISUAL: DISTRIBUCIÓN DE GASTOS POR USUARIO           */}
           {/* =============================================================== */}
           {esTarjetaFamiliar && (
             <div className="tarjeta-widget-home mb-3">
@@ -571,16 +570,57 @@ export default function TarjetaFamiliar() {
                   Distribución de Gastos por Usuario
                 </span>
                 <span className="badge-cantidad-usuarios">
-                  {liquidacionPorUsuario.filter(u => u.monto > 0).length} familiares activos
+                  {liquidacionPorUsuario.filter(u => u.monto > 0).length > 0
+                    ? `${liquidacionPorUsuario.filter(u => u.monto > 0).length} familiares activos`
+                    : `${liquidacionPorUsuario.length} miembros`}
                 </span>
               </div>
 
               {totalCiclo === 0 ? (
-                <div className="text-center py-4 text-muted">
-                  <i className="fas fa-receipt fa-2x mb-2 text-secondary"></i>
-                  <p className="mb-0" style={{ fontSize: '0.85rem' }}>
-                    No hay consumos registrados en este ciclo de pago.
-                  </p>
+                <div>
+                  <div className="d-flex flex-column gap-2 mb-2">
+                    {liquidacionPorUsuario.map((u) => (
+                      <div key={u.nombre} className="item-grafica-usuario-tc">
+                        <div className="d-flex justify-content-between align-items-center mb-1">
+                          <div className="d-flex align-items-center gap-2">
+                            <div
+                              className="avatar-mini-usuario-tc"
+                              style={{ backgroundColor: u.color }}
+                            >
+                              {u.nombre.charAt(0).toUpperCase()}
+                            </div>
+                            <span className="nombre-usuario-tc">{u.nombre}</span>
+                            <span className="badge-gastos-conteo">
+                              0 gastos
+                            </span>
+                          </div>
+
+                          <div className="text-right">
+                            <strong className="monto-usuario-tc" style={{ color: '#8E92A4' }}>
+                              Q 0.00
+                            </strong>
+                            <span className="porcentaje-usuario-tc ml-1 text-muted">
+                              (0.0%)
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="barra-fondo-mini-tc">
+                          <div
+                            className="barra-relleno-mini-tc"
+                            style={{
+                              width: '0%',
+                              backgroundColor: u.color
+                            }}
+                          ></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="text-center py-2 text-muted" style={{ fontSize: '0.8rem', background: '#F9FAFB', borderRadius: '10px' }}>
+                    <i className="fas fa-info-circle mr-1 text-primary"></i>
+                    No hay consumos registrados en este ciclo. Todos los miembros están en Q 0.00.
+                  </div>
                 </div>
               ) : (
                 <div>
@@ -646,7 +686,7 @@ export default function TarjetaFamiliar() {
           )}
 
           {/* =============================================================== */}
-          {/* 5. TABLA DE LIQUIDACIÓN: SOLO SI ES TARJETA FAMILIAR            */}
+          {/* 5. TABLA DE LIQUIDACIÓN: ¿CUÁNTO DEBE PAGAR CADA PERSONA?       */}
           {/* =============================================================== */}
           {esTarjetaFamiliar && (
             <div className="tarjeta-widget-home mb-3">
@@ -660,52 +700,55 @@ export default function TarjetaFamiliar() {
                 </span>
               </div>
 
-              {totalCiclo === 0 ? (
-                <div className="text-center py-3 text-muted" style={{ fontSize: '0.85rem' }}>
-                  Todos los miembros están al día. No hay pagos pendientes para este ciclo.
-                </div>
-              ) : (
-                <div className="d-flex flex-column gap-2">
-                  {liquidacionPorUsuario.map((u) => (
-                    <div
-                      key={u.nombre}
-                      className={`tarjeta-fila-liquidacion-tc ${filtroUsuario === u.nombre ? 'seleccionada' : ''}`}
-                      onClick={() => setFiltroUsuario(filtroUsuario === u.nombre ? 'todos' : u.nombre)}
-                    >
-                      <div className="d-flex align-items-center justify-content-between">
-                        <div className="d-flex align-items-center gap-3">
-                          <div
-                            className="avatar-liquidacion-tc"
-                            style={{ backgroundColor: u.color }}
-                          >
-                            {u.nombre.charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <strong className="nombre-persona-liquidacion">{u.nombre}</strong>
-                            <div className="subtexto-persona-liquidacion">
-                              {u.cantidadGastos} consumos • {u.porcentaje.toFixed(1)}% de la factura
-                            </div>
-                          </div>
+              <div className="d-flex flex-column gap-2">
+                {liquidacionPorUsuario.map((u) => (
+                  <div
+                    key={u.nombre}
+                    className={`tarjeta-fila-liquidacion-tc ${filtroUsuario === u.nombre ? 'seleccionada' : ''}`}
+                    onClick={() => setFiltroUsuario(filtroUsuario === u.nombre ? 'todos' : u.nombre)}
+                  >
+                    <div className="d-flex align-items-center justify-content-between">
+                      <div className="d-flex align-items-center gap-3">
+                        <div
+                          className="avatar-liquidacion-tc"
+                          style={{ backgroundColor: u.color }}
+                        >
+                          {u.nombre.charAt(0).toUpperCase()}
                         </div>
-
-                        <div className="text-right">
-                          <span className="etiqueta-debe-pagar">Debe transferir:</span>
-                          <div className="monto-debe-pagar-valor">
-                            Q {u.monto.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        <div>
+                          <strong className="nombre-persona-liquidacion">{u.nombre}</strong>
+                          <div className="subtexto-persona-liquidacion">
+                            {u.cantidadGastos} consumos • {u.porcentaje.toFixed(1)}% de la factura
                           </div>
                         </div>
                       </div>
 
-                      <div className="footer-fila-liquidacion-tc mt-2 pt-2 d-flex justify-content-between align-items-center">
-                        <span style={{ fontSize: '0.72rem', color: '#8E92A4' }}>
-                          {filtroUsuario === u.nombre ? 'Mostrando solo sus gastos' : 'Toca para ver solo sus comprobantes'}
-                        </span>
-                        <span className="badge-ver-gastos-tc" style={{ color: u.color }}>
-                          {filtroUsuario === u.nombre ? 'Ver todos' : 'Filtrar'} <i className="fas fa-arrow-right ml-1"></i>
-                        </span>
+                      <div className="text-right">
+                        <span className="etiqueta-debe-pagar">Debe transferir:</span>
+                        <div className="monto-debe-pagar-valor" style={{ color: u.monto > 0 ? '#1E1F30' : '#10B981' }}>
+                          Q {u.monto.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
                       </div>
                     </div>
-                  ))}
+
+                    <div className="footer-fila-liquidacion-tc mt-2 pt-2 d-flex justify-content-between align-items-center">
+                      <span style={{ fontSize: '0.72rem', color: u.monto > 0 ? '#8E92A4' : '#10B981' }}>
+                        {u.monto > 0
+                          ? (filtroUsuario === u.nombre ? 'Mostrando solo sus gastos' : 'Toca para ver solo sus comprobantes')
+                          : 'Al día • Sin consumos pendientes'}
+                      </span>
+                      <span className="badge-ver-gastos-tc" style={{ color: u.color }}>
+                        {filtroUsuario === u.nombre ? 'Ver todos' : 'Filtrar'} <i className="fas fa-arrow-right ml-1"></i>
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {totalCiclo === 0 && (
+                <div className="text-center mt-2 py-2 text-muted" style={{ fontSize: '0.8rem', background: '#ECFDF5', color: '#065F46', borderRadius: '10px' }}>
+                  <i className="fas fa-check-circle mr-1" style={{ color: '#10B981' }}></i>
+                  Todos los miembros están al día. No hay pagos pendientes para este ciclo.
                 </div>
               )}
             </div>
@@ -733,11 +776,22 @@ export default function TarjetaFamiliar() {
             </div>
 
             {movimientosFiltrados.length === 0 ? (
-              <div className="text-center py-4 text-muted">
-                <i className="fas fa-shopping-bag fa-2x mb-2 text-secondary"></i>
-                <p className="mb-0" style={{ fontSize: '0.85rem' }}>
-                  No se encontraron consumos para los filtros seleccionados.
+              <div className="text-center py-4 bg-light rounded border">
+                <i className="fas fa-shopping-bag fa-2x mb-2 text-muted" style={{ opacity: 0.6 }}></i>
+                <h6 style={{ fontSize: '0.88rem', fontWeight: 700, color: '#1E1F30' }}>
+                  No hay consumos en este ciclo ({movimientosFiltrados.length})
+                </h6>
+                <p className="mb-3 text-muted" style={{ fontSize: '0.8rem' }}>
+                  Los gastos que registres asignados a esta tarjeta aparecerán detallados aquí.
                 </p>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-primary"
+                  style={{ background: '#4E44EB', borderColor: '#4E44EB', borderRadius: '12px', fontWeight: 700 }}
+                  onClick={() => historial.push('/add-data/1')}
+                >
+                  <i className="fas fa-plus mr-1"></i> Registrar nuevo gasto con tarjeta
+                </button>
               </div>
             ) : (
               <div className="d-flex flex-column gap-2">
